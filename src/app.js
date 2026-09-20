@@ -13,7 +13,7 @@ const app = express();
 app.use(httpLogger);
 app.use(contextMiddleware);
 app.use(express.json({ limit: '100kb' }));
-app.use('/api/v1', router);
+app.use('/api', router);
 app.use(notFound);
 app.use(errorHandler);
 
