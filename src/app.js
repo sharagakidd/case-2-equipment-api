@@ -25,6 +25,16 @@ app.use(
     max: config.rateLimit.max,
     standardHeaders: true,
     legacyHeaders: false,
+    // Свой ответ, чтобы 429 приходил в общем формате ошибок API.
+    handler: (req, res) => {
+      res.status(429).json({
+        error: {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Слишком много запросов, попробуйте позже',
+          requestId: req.id,
+        },
+      });
+    },
   }),
 );
 app.use(express.json({ limit: '100kb' }));
