@@ -24,7 +24,16 @@ export const equipmentService = {
   },
 
   update(id, data) {
-    if (!equipmentRepository.exists(id)) throw new NotFoundError('Оборудование');
+    const current = equipmentRepository.findById(id);
+    if (!current) throw new NotFoundError('Оборудование');
+
+    // Уникальность серийного номера проверяем и при обновлении: иначе PATCH
+    // позволил бы занять номер, который уже есть у другой единицы техники.
+    if (data.serialNumber && data.serialNumber !== current.serialNumber) {
+      const occupied = equipmentRepository.findBySerialNumber(data.serialNumber);
+      if (occupied) throw new ConflictError('Оборудование с таким серийным номером уже существует');
+    }
+
     return equipmentRepository.update(id, data);
   },
 
