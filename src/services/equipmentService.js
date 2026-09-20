@@ -1,6 +1,8 @@
 import { equipmentRepository, requestRepository } from '../repositories/index.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ConflictError } from '../errors/ConflictError.js';
+import { weatherService } from './weatherService.js';
+import { config } from '../config/index.js';
 
 // Бизнес-логика оборудования: проверки уникальности и ссылочной целостности
 // живут здесь, репозитории остаются «тупыми» хранилищами.
@@ -32,5 +34,37 @@ export const equipmentService = {
       throw new ConflictError('Нельзя удалить оборудование с открытыми заявками');
     }
     equipmentRepository.delete(id);
+  },
+
+  // Прогноз по координатам объекта и пригодность окна для наружных работ.
+  // Недоступность внешнего API не роняем: отдаём suitable: null и причину,
+  // а решение о коде ответа принимает контроллер.
+  async getWeather(id) {
+    const equipment = this.getById(id);
+    const forecast = await weatherService.getForecast(
+      equipment.location.lat,
+      equipment.location.lon,
+    );
+
+    if (!forecast.available) {
+      return { equipment, forecast, suitable: null, reason: forecast.reason };
+    }
+
+    // Определяем пригодность
+    const reasons = [];
+    const daily = forecast.daily;
+
+    const maxWind = Math.max(...daily.wind_speed_10m_max);
+    const totalPrecip = daily.precipitation_sum.reduce((s, v) => s + v, 0);
+
+    if (maxWind > config.maxWindSpeed) reasons.push('Сильный ветер');
+    if (totalPrecip > config.maxPrecipitation) reasons.push('Осадки');
+
+    return {
+      equipment,
+      forecast: daily,
+      suitable: reasons.length === 0,
+      reasons,
+    };
   },
 };

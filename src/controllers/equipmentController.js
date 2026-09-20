@@ -21,12 +21,20 @@ export const equipmentController = {
 
   create: async (req, res) => {
     const item = await equipmentService.create(req.valid.body);
-    res.status(201).location(`/api/v1/equipment/${item.id}`).json({ data: item });
+    res.status(201).location(`/api/equipment/${item.id}`).json({ data: item });
   },
 
   update: async (req, res) => {
     const item = await equipmentService.update(req.params.id, req.valid.body);
     sendOne(res, item);
+  },
+
+  // Прогноз по координатам объекта. Недоступность внешнего API — не ошибка
+  // клиента: отвечаем 200, но с suitable: null и причиной в reason
+  // (forecast.available при этом false). Неизвестная техника — 404 из сервиса.
+  getWeather: async (req, res) => {
+    const result = await equipmentService.getWeather(req.params.id);
+    sendOne(res, result);
   },
 
   remove: async (req, res) => {

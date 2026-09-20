@@ -13,6 +13,7 @@ const router = Router();
 router.get('/', validate({ query: equipmentListQuery }), equipmentController.list);
 router.post('/', validate({ body: createEquipmentSchema }), equipmentController.create);
 router.get('/:id/requests', validate({ query: requestListQuery }), requestController.getByEquipment);
+router.get('/:id/weather', equipmentController.getWeather);
 router.get('/:id', equipmentController.getOne);
 router.patch('/:id', validate({ body: updateEquipmentSchema }), equipmentController.update);
 router.delete('/:id', equipmentController.remove);
