@@ -14,6 +14,7 @@ export const httpLogger = pinoHttp({
     res.setHeader('X-Request-Id', id);
     return id;
   },
+  customProps: (req) => ({ reqId: req.id }),
   customLogLevel: (req, res, err) => {
     if (err || res.statusCode >= 500) return 'error';
     if (res.statusCode >= 400) return 'warn';
