@@ -2,6 +2,16 @@ import 'dotenv/config';
 
 // Единая точка чтения переменных окружения.
 // dotenv/config выше подхватывает .env в момент импорта модуля.
+// Без этих переменных приложение стартует в заведомо нерабочем состоянии,
+// поэтому падаем сразу на импорте, а не в момент первого запроса.
+const REQUIRED_ENV_VARS = ['CORS_ORIGINS', 'WEATHER_API_URL', 'FORECAST_API_URL'];
+
+for (const name of REQUIRED_ENV_VARS) {
+  if (!process.env[name]) {
+    throw new Error(`Не задана обязательная переменная окружения: ${name}`);
+  }
+}
+
 const nodeEnv = process.env.NODE_ENV || 'development';
 
 export const config = {
