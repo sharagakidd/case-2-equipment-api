@@ -8,7 +8,7 @@ export class ValidationError extends AppError {
       status: 422,
       code: 'validation_error',
       details: zodError.issues.map((issue) => ({
-        field: issue.path.join('.'),
+        field: issue.path.length > 0 ? issue.path.join('.') : '(body)',
         message: issue.message,
       })),
     });
