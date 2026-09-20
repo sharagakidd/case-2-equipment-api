@@ -21,7 +21,7 @@ export const requestController = {
 
   create: async (req, res) => {
     const item = await requestService.create(req.valid.body);
-    res.status(201).location(`/api/v1/requests/${item.id}`).json({ data: item });
+    res.status(201).location(`/api/requests/${item.id}`).json({ data: item });
   },
 
   update: async (req, res) => {

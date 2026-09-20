@@ -20,5 +20,5 @@ export const httpLogger = pinoHttp({
     if (res.statusCode >= 400) return 'warn';
     return 'info';
   },
-  autoLogging: { ignore: (req) => req.url === '/api/v1/health' },
+  autoLogging: { ignore: (req) => req.url === '/api/health' },
 });
