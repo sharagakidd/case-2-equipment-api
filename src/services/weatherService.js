@@ -33,7 +33,7 @@ export const weatherService = {
         return { available: false, reason: `Погодный сервис ответил ${response.status}` };
       }
 
-      return { available: true, days: toDays(await response.json()) };
+      return { available: true, daily: toDaily(await response.json()) };
     } catch (err) {
       return {
         available: false,
@@ -48,15 +48,8 @@ export const weatherService = {
   },
 };
 
-// Open-Meteo отдаёт прогноз параллельными массивами — разворачиваем их в дни.
-function toDays(payload) {
-  const daily = payload?.daily ?? {};
-
-  return (daily.time ?? []).map((date, index) => ({
-    date,
-    temperatureMax: daily.temperature_2m_max?.[index] ?? null,
-    temperatureMin: daily.temperature_2m_min?.[index] ?? null,
-    precipitation: daily.precipitation_sum?.[index] ?? null,
-    windSpeedMax: daily.wind_speed_10m_max?.[index] ?? null,
-  }));
+// Отдаём блок daily как есть: оценке пригодности нужны массивы Open-Meteo
+// по каждому параметру (time, wind_speed_10m_max, precipitation_sum и так далее).
+function toDaily(payload) {
+  return payload?.daily ?? {};
 }
