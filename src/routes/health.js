@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 // Health-проверка: только «процесс жив», без обращений к внешним API.
-// Монтируется как /health, поэтому итоговый путь — /api/v1/health.
+// Смонтирован в app.js как app.use('/api', router), поэтому итоговый путь — /api/health.
 const router = Router();
 
 const startedAt = Date.now();
