@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      # значения подставляются из .env (compose читает его автоматически)
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      # в образе postgres:18 данные лежат в /var/lib/postgresql (без /data)
+      - pgdata:/var/lib/postgresql
+      # сюда кладутся .sql/.sh для первичной инициализации (пока пусто)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # $${...} раскрывается внутри контейнера его же переменными окружения
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
