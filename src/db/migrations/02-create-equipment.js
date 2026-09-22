@@ -1,6 +1,5 @@
 // 02. Оборудование (equipment). Зависит от 01-create-sites.js.
-// site_id — необязательная связь: в модели данных кейса координаты являются
-// свойством самого оборудования (lat/lon ниже), поэтому площадка может быть не указана.
+// site_id не обязателен: координаты хранятся у самого оборудования (lat/lon ниже).
 export async function up(queryInterface, Sequelize) {
   await queryInterface.createTable('equipment', {
     id: {
@@ -28,7 +27,6 @@ export async function up(queryInterface, Sequelize) {
       defaultValue: 'operational',
     },
     installed_at: { type: Sequelize.DATE, allowNull: true },
-    // location { lat, lon } из модели данных кейса.
     lat: { type: Sequelize.DECIMAL(9, 6), allowNull: true },
     lon: { type: Sequelize.DECIMAL(9, 6), allowNull: true },
     createdAt: {

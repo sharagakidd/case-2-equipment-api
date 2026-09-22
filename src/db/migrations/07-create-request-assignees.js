@@ -1,7 +1,5 @@
 // 07. Исполнители заявки (request_assignees). Зависит от 04 и 05.
-// Связь many-to-many между заявками и техниками: роль в заявке и потраченные часы.
-// Пара (request_id, technician_id) уникальна — один техник в заявке указывается один раз.
-// Временных меток у таблицы нет: по ТЗ это чистая связка.
+// Пара (request_id, technician_id) уникальна, временных меток у таблицы нет.
 export async function up(queryInterface, Sequelize) {
   await queryInterface.createTable('request_assignees', {
     id: {

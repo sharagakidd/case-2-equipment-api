@@ -1,8 +1,7 @@
 import * as z from 'zod';
 
-// Схемы оборудования. z.object отбрасывает неизвестные поля тела (так требует ТЗ).
-// Базовые поля описаны без default и optional: значение по умолчанию и необязательность
-// задаются в схеме создания, иначе PATCH с одним полем затирал бы status.
+// Схемы оборудования. z.object отбрасывает неизвестные поля тела запроса.
+// Базовые поля — без default и optional: их задаёт схема создания, иначе PATCH затирал бы status.
 const equipmentFields = {
   name: z.string().min(3).max(100),
   type: z.enum(['turbine', 'inverter', 'sensor', 'substation']),
