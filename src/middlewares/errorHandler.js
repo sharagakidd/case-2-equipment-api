@@ -3,8 +3,8 @@ import { ConflictError } from '../errors/ConflictError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import logger from '../lib/logger.js';
 
-// Соответствие «класс ошибки → машинный код» по ТЗ кейса. Всё, что не попало
-// в таблицу (в том числе базовый AppError), отдаём как INTERNAL_ERROR.
+// Соответствие «класс ошибки → машинный код». Всё, что не попало в таблицу
+// (в том числе базовый AppError), отдаём как INTERNAL_ERROR.
 const ERROR_CODES = [
   [NotFoundError, 'NOT_FOUND'],
   [ConflictError, 'CONFLICT'],
@@ -17,10 +17,8 @@ function resolveErrorCode(err) {
   return matched ? matched[1] : 'INTERNAL_ERROR';
 }
 
-// Единый обработчик ошибок: тело ответа вида
-// { error: { code, message, details?, requestId } }. Ожидаемые ошибки (AppError)
-// отдаём клиенту как есть, а внутренние прячем — наружу уходит безликий 500,
-// детали остаются только в логах.
+// Тело ответа: { error: { code, message, details?, requestId } }. Ожидаемые ошибки
+// отдаём как есть, внутренние прячем — наружу уходит 500, детали только в логах.
 export function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
 
