@@ -11,6 +11,8 @@ export const equipmentService = {
     return equipmentRepository.findAll({ filters, sort, pagination });
   },
 
+  // Карточка отдаётся вместе с паспортом (если строки паспорта нет — ключ null):
+  // в списке паспорт лишний, а в карточке он нужен.
   async getById(id) {
     const item = await equipmentRepository.findById(id);
     if (!item) throw new NotFoundError('Оборудование');

@@ -18,6 +18,8 @@ export const requestService = {
     return requestRepository.findAll({ filters, sort, pagination });
   },
 
+  // Карточка отдаётся вместе с исполнителями (у каждого роль и часы) и историей
+  // смены статуса: без них карточка заявки неполная.
   async getById(id) {
     const item = await requestRepository.findById(id);
     if (!item) throw new NotFoundError('Заявка');
