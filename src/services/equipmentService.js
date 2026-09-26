@@ -4,52 +4,52 @@ import { ConflictError } from '../errors/ConflictError.js';
 import { weatherService } from './weatherService.js';
 import { config } from '../config/index.js';
 
-// Бизнес-логика оборудования: проверки уникальности и ссылочной целостности
-// живут здесь, репозитории остаются «тупыми» хранилищами.
+// Бизнес-логика оборудования: проверки уникальности и ссылочной целостности живут
+// здесь — репозитории только читают и пишут данные.
 export const equipmentService = {
-  getAll({ filters, sort, pagination }) {
+  async getAll({ filters, sort, pagination }) {
     return equipmentRepository.findAll({ filters, sort, pagination });
   },
 
-  getById(id) {
-    const item = equipmentRepository.findById(id);
+  async getById(id) {
+    const item = await equipmentRepository.findById(id);
     if (!item) throw new NotFoundError('Оборудование');
     return item;
   },
 
-  create(data) {
-    const existing = equipmentRepository.findBySerialNumber(data.serialNumber);
+  async create(data) {
+    const existing = await equipmentRepository.findBySerialNumber(data.serialNumber);
     if (existing) throw new ConflictError('Оборудование с таким серийным номером уже существует');
     return equipmentRepository.create(data);
   },
 
-  update(id, data) {
-    const current = equipmentRepository.findById(id);
+  async update(id, data) {
+    const current = await equipmentRepository.findById(id);
     if (!current) throw new NotFoundError('Оборудование');
 
-    // Уникальность серийного номера проверяем и при обновлении: иначе PATCH
-    // позволил бы занять номер, который уже есть у другой единицы техники.
+    // Уникальность серийного номера проверяем и при обновлении: иначе частичное
+    // обновление позволило бы занять номер, который есть у другой единицы техники.
     if (data.serialNumber && data.serialNumber !== current.serialNumber) {
-      const occupied = equipmentRepository.findBySerialNumber(data.serialNumber);
+      const occupied = await equipmentRepository.findBySerialNumber(data.serialNumber);
       if (occupied) throw new ConflictError('Оборудование с таким серийным номером уже существует');
     }
 
     return equipmentRepository.update(id, data);
   },
 
-  remove(id) {
-    if (!equipmentRepository.exists(id)) throw new NotFoundError('Оборудование');
-    if (requestRepository.hasOpenRequests(id)) {
+  async remove(id) {
+    if (!(await equipmentRepository.exists(id))) throw new NotFoundError('Оборудование');
+    if (await requestRepository.hasOpenRequests(id)) {
       throw new ConflictError('Нельзя удалить оборудование с открытыми заявками');
     }
-    equipmentRepository.delete(id);
+    await equipmentRepository.delete(id);
   },
 
   // Прогноз по координатам объекта и пригодность окна для наружных работ.
   // Недоступность внешнего API не роняем: отдаём suitable: null и причину,
   // а решение о коде ответа принимает контроллер.
   async getWeather(id) {
-    const equipment = this.getById(id);
+    const equipment = await this.getById(id);
     const forecast = await weatherService.getForecast(
       equipment.location.lat,
       equipment.location.lon,

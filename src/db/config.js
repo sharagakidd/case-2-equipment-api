@@ -11,5 +11,7 @@ export default {
     port: Number(process.env.PGPORT),
     dialect: 'postgres',
     logging: false,
+    // Служебная таблица с применёнными сидами: повторный db:seed:all их пропускает.
+    seederStorage: 'sequelize',
   },
 };
