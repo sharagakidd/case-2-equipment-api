@@ -2,8 +2,8 @@ import { requestRepository, equipmentRepository } from '../repositories/index.js
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ConflictError } from '../errors/ConflictError.js';
 
-// Машина состояний заявки: какие переходы допустимы. Закрытые статусы (done,
-// rejected) — терминальные, из них выйти уже нельзя.
+// Правила переходов статуса заявки: какие переходы допустимы. Закрытые статусы
+// (done, rejected) — конечные, выйти из них уже нельзя.
 const ALLOWED_TRANSITIONS = {
   new: ['in_progress', 'rejected'],
   in_progress: ['done', 'rejected'],
@@ -14,30 +14,32 @@ const ALLOWED_TRANSITIONS = {
 // Бизнес-логика заявок: проверка существования техники при создании и правила
 // смены статуса. Новую заявку всегда создаём в статусе new, что бы ни прислали.
 export const requestService = {
-  getAll({ filters, sort, pagination }) {
+  async getAll({ filters, sort, pagination }) {
     return requestRepository.findAll({ filters, sort, pagination });
   },
 
-  getById(id) {
-    const item = requestRepository.findById(id);
+  // Карточка отдаётся вместе с исполнителями (у каждого роль и часы) и историей
+  // смены статуса: без них карточка заявки неполная.
+  async getById(id) {
+    const item = await requestRepository.findById(id);
     if (!item) throw new NotFoundError('Заявка');
     return item;
   },
 
-  create(data) {
-    if (!equipmentRepository.exists(data.equipmentId)) {
+  async create(data) {
+    if (!(await equipmentRepository.exists(data.equipmentId))) {
       throw new NotFoundError('Оборудование');
     }
     return requestRepository.create({ ...data, status: 'new' });
   },
 
-  update(id, data) {
-    if (!requestRepository.exists(id)) throw new NotFoundError('Заявка');
+  async update(id, data) {
+    if (!(await requestRepository.exists(id))) throw new NotFoundError('Заявка');
     return requestRepository.update(id, data);
   },
 
-  changeStatus(id, newStatus) {
-    const request = requestRepository.findById(id);
+  async changeStatus(id, newStatus) {
+    const request = await requestRepository.findById(id);
     if (!request) throw new NotFoundError('Заявка');
 
     const allowed = ALLOWED_TRANSITIONS[request.status] || [];
@@ -48,13 +50,13 @@ export const requestService = {
     return requestRepository.update(id, { status: newStatus });
   },
 
-  remove(id) {
-    if (!requestRepository.exists(id)) throw new NotFoundError('Заявка');
-    requestRepository.delete(id);
+  async remove(id) {
+    if (!(await requestRepository.exists(id))) throw new NotFoundError('Заявка');
+    await requestRepository.delete(id);
   },
 
-  getByEquipmentId(equipmentId) {
-    if (!equipmentRepository.exists(equipmentId)) throw new NotFoundError('Оборудование');
+  async getByEquipmentId(equipmentId) {
+    if (!(await equipmentRepository.exists(equipmentId))) throw new NotFoundError('Оборудование');
     return requestRepository.findByEquipmentId(equipmentId);
   },
 };
