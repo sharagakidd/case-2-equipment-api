@@ -100,6 +100,11 @@ npm start       # обычный запуск
 | PATCH | `/api/requests/:id` | редактирование полей заявки (статус этим методом не меняется) |
 | PATCH | `/api/requests/:id/status` | смена статуса с проверкой допустимости перехода |
 | DELETE | `/api/requests/:id` | удаление заявки |
+| POST | `/api/requests/:id/assignees` | назначение бригады заявки (ровно один `lead`) |
+| DELETE | `/api/requests/:id/assignees/:userId` | снятие исполнителя с заявки |
+| GET | `/api/requests/:id/history` | история смен статуса заявки |
+| GET | `/api/sites/:id/summary` | сводка по площадке: оборудование, заявки, часы |
+| GET | `/api/reports/equipment-load` | аналитика по загрузке оборудования (raw SQL) |
 
 Формат ответов: одиночная сущность — `{ "data": { … } }`, список — `{ "data": [ … ], "meta": { "total": n, "page": 1, "limit": 20, "totalPages": m } }`.
 Создание возвращает `201` и заголовок `Location` с адресом новой сущности, удаление — `204` без тела.
@@ -111,6 +116,7 @@ npm start       # обычный запуск
 | `GET /api/equipment` | `page` (по умолчанию 1), `limit` (20, максимум 100), `status`, `type`, `sortBy`, `order` (`asc`/`desc`) |
 | `GET /api/requests` | `page`, `limit`, `status`, `priority`, `equipmentId`, `sortBy`, `order` |
 | `GET /api/equipment/:id/requests` | `page`, `limit`, `status`, `priority`, `sortBy`, `order` |
+| `GET /api/reports/equipment-load` | `siteId` — ограничить выборку одной площадкой |
 
 `sortBy` принимает имя поля сущности, для убывания используйте `order=desc`. Некорректные значения
 этих параметров дают `422`; неизвестные параметры просто игнорируются.
@@ -140,6 +146,71 @@ in_progress → rejected
 
 Смена статуса выполняется только через `PATCH /api/requests/:id/status`. Обычный
 `PATCH /api/requests/:id` это поле игнорирует, поэтому обойти правила переходов нельзя.
+
+## Бригада заявки
+
+`POST /api/requests/:id/assignees` задаёт состав бригады целиком: прежние назначения
+удаляются, поэтому число строк в `request_assignees` не растёт при повторных вызовах.
+В теле обязателен ровно один исполнитель с ролью `lead`, дубли техников и пустой список
+отклоняются с `422`, несуществующий техник даёт `404`. Поле `hours` необязательно.
+
+```json
+{
+  "assignees": [
+    { "technicianId": "9c48a077-6705-46ee-a418-08c33c601e2a", "role": "lead", "hours": 4 },
+    { "technicianId": "600fc002-a322-4fa3-b3cd-8e7169b8fd7a", "role": "member" }
+  ]
+}
+```
+
+Оба маршрута возвращают карточку заявки с обновлённым списком `assignees`.
+`DELETE /api/requests/:id/assignees/:userId` снимает одного исполнителя (в `:userId` —
+идентификатор техника) и отвечает `404`, если такого исполнителя у заявки нет.
+
+## Сводка по площадке
+
+`GET /api/sites/:id/summary` отдаёт карточку площадки и агрегаты по ней: оборудование и
+заявки по статусам (нулевые статусы тоже присутствуют) плюс суммарные часы исполнителей.
+
+```json
+{
+  "data": {
+    "site": { "id": "1fcf…", "name": "Ветропарк Северный", "code": "VN-01", "region": "Мурманская область", "location": { "lat": 68.958333, "lon": 33.082778 } },
+    "equipment": { "total": 3, "byStatus": { "operational": 1, "maintenance": 1, "fault": 1, "decommissioned": 0 } },
+    "requests": { "total": 14, "open": 8, "byStatus": { "new": 4, "in_progress": 4, "done": 4, "rejected": 2 } },
+    "assignees": { "plannedHours": 40.5 }
+  }
+}
+```
+
+## Отчёт по загрузке оборудования
+
+`GET /api/reports/equipment-load` — аналитика одним запросом к базе (raw SQL): счётчики заявок
+и часы исполнителей считаются подзапросами, поэтому строки не размножаются. Параметр `siteId`
+ограничивает выборку одной площадкой; неизвестный `siteId` даёт пустой список, а не `404`.
+Ответ — `{ "data": [ … ] }` без пагинации, самая нагруженная техника идёт первой.
+
+```json
+{
+  "data": [
+    {
+      "id": "7cd9ca48-99da-4e05-a51c-dcb81b79d684",
+      "name": "Ветротурбина №3",
+      "type": "turbine",
+      "serialNumber": "SN-WT-0003",
+      "equipmentStatus": "fault",
+      "siteId": "1fcf…",
+      "siteName": "Ветропарк Северный",
+      "totalRequests": 5,
+      "openRequests": 3,
+      "overdueRequests": 2,
+      "doneRequests": 1,
+      "plannedHours": 4,
+      "lastRequestAt": "2026-09-25T00:00:00.000Z"
+    }
+  ]
+}
+```
 
 ## Формат ошибок
 

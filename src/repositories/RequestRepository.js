@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import { BaseRepository } from './BaseRepository.js';
-import { MaintenanceRequest } from '../db/models/index.js';
+import { MaintenanceRequest, RequestAssignee, RequestStatusHistory } from '../db/models/index.js';
 import { toEquipment } from './EquipmentRepository.js';
 
 // Незакрытые заявки: оборудование занято или находится в ремонте.
@@ -68,7 +68,6 @@ export function toRequest(instance) {
   return request;
 }
 
-// Репозиторий заявок: заявки по оборудованию и проверка незакрытых — запросами в БД.
 export class RequestRepository extends BaseRepository {
   constructor() {
     super(MaintenanceRequest, {
@@ -85,6 +84,57 @@ export class RequestRepository extends BaseRepository {
     const { data } = await this.findAll({ filters: { equipmentId }, sort: '-createdAt' });
 
     return data;
+  }
+
+  // История статусов отдельным запросом: карточку заявки для этого тянуть не нужно.
+  async findHistory(requestId) {
+    if (requestId === undefined || requestId === null) return [];
+
+    const rows = await RequestStatusHistory.findAll({
+      where: { requestId },
+      order: [
+        ['createdAt', 'ASC'],
+        ['id', 'ASC'],
+      ],
+    });
+
+    return rows.map(toHistoryEntry);
+  }
+
+  async countAssignees(requestId, { transaction } = {}) {
+    return RequestAssignee.count({ where: { requestId }, transaction });
+  }
+
+  async addStatusHistory({ requestId, oldStatus, newStatus, author, comment }, { transaction } = {}) {
+    const row = await RequestStatusHistory.create(
+      { requestId, oldStatus, newStatus, author, comment },
+      { transaction },
+    );
+
+    return toHistoryEntry(row);
+  }
+
+  // Замена бригады одной транзакцией: иначе при ошибке заявка осталась бы без исполнителей.
+  async replaceAssignees(requestId, assignees, { transaction } = {}) {
+    await RequestAssignee.destroy({ where: { requestId }, transaction });
+
+    const rows = await RequestAssignee.bulkCreate(
+      assignees.map(({ technicianId, role, hours }) => ({
+        requestId,
+        technicianId,
+        role,
+        hours: hours ?? null,
+      })),
+      { transaction },
+    );
+
+    return rows.map((row) => row.get({ plain: true }));
+  }
+
+  async removeAssignee(requestId, technicianId, { transaction } = {}) {
+    if (technicianId === undefined || technicianId === null) return 0;
+
+    return RequestAssignee.destroy({ where: { requestId, technicianId }, transaction });
   }
 
   // Наличие незакрытых заявок — это факт, тянуть сами строки не нужно.

@@ -5,6 +5,8 @@ import {
   createRequestSchema,
   updateRequestSchema,
   statusChangeSchema,
+  assignTeamSchema,
+  assigneeParamsSchema,
   idParamSchema,
 } from '../validators/requestSchemas.js';
 import { requestListQuery } from '../validators/querySchemas.js';
@@ -17,6 +19,10 @@ const router = Router();
 router.get('/', validate({ query: requestListQuery }), requestController.list);
 router.post('/', validate({ body: createRequestSchema }), requestController.create);
 router.patch('/:id/status', validate({ params: idParamSchema, body: statusChangeSchema }), requestController.changeStatus);
+// Бригада вынесена в отдельный подресурс: PATCH заявки её не касается.
+router.post('/:id/assignees', validate({ params: idParamSchema, body: assignTeamSchema }), requestController.assignTeam);
+router.delete('/:id/assignees/:userId', validate({ params: assigneeParamsSchema }), requestController.removeAssignee);
+router.get('/:id/history', validate({ params: idParamSchema }), requestController.history);
 router.get('/:id', validate({ params: idParamSchema }), requestController.getOne);
 router.patch('/:id', validate({ params: idParamSchema, body: updateRequestSchema }), requestController.update);
 router.delete('/:id', validate({ params: idParamSchema }), requestController.remove);
