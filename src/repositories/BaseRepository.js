@@ -1,17 +1,14 @@
 import { Op, ForeignKeyConstraintError } from 'sequelize';
 import { ConflictError } from '../errors/ConflictError.js';
 
-// Потолок размера страницы: защита от запросов вида ?limit=100000.
 export const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 20;
-// Второй ключ нужен, чтобы порядок не «плавал» у записей с одинаковым createdAt.
+// Второй ключ — чтобы порядок не плавал при одинаковом createdAt.
 const DEFAULT_ORDER = [['createdAt', 'ASC'], ['id', 'ASC']];
-// Системные поля: их нельзя подменить через тело запроса.
 const SYSTEM_FIELDS = ['id', 'createdAt', 'updatedAt'];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Базовый репозиторий поверх Sequelize: фильтры, сортировка и разбивка на страницы
-// выполняются в базе. Наследники задают модель, поля для сортировки и вид записей.
+// Общая логика выборок в БД: наследники задают модель, поля сортировки и вид записей.
 export class BaseRepository {
   constructor(model, { sortable = [], listInclude = [], detailInclude } = {}) {
     this.model = model;
@@ -20,13 +17,12 @@ export class BaseRepository {
     this.detailInclude = detailInclude ?? listInclude;
   }
 
-  // Общее количество считаем без учёта страницы — в ответе оно по всей выборке.
   async findAll({ filters, sort, pagination } = {}) {
     const { rows, count } = await this.model.findAndCountAll({
       where: this.#buildWhere(filters),
       order: this.#buildOrder(sort),
       include: this.listInclude,
-      // Считаем только уникальные строки: на связанных записях количество размножится.
+      // distinct: без него count размножится на связанных записях.
       distinct: true,
       ...this.#buildPagination(pagination),
     });
@@ -35,12 +31,22 @@ export class BaseRepository {
   }
 
   // Мусорный id не доводим до базы: она ответит ошибкой приведения типа.
-  async findById(id) {
+  async findById(id, { transaction } = {}) {
     if (!isUuid(id)) return null;
 
-    const row = await this.model.findByPk(id, { include: this.detailInclude });
+    const row = await this.model.findByPk(id, { include: this.detailInclude, transaction });
 
     return this.toDomain(row);
+  }
+
+  // Блокировка строки: читаем только саму запись, без include —
+  // PostgreSQL не принимает FOR UPDATE на внешней стороне LEFT JOIN.
+  async findRowForUpdate(id, { transaction } = {}) {
+    if (!isUuid(id)) return null;
+
+    const row = await this.model.findByPk(id, { transaction, lock: transaction?.LOCK.UPDATE });
+
+    return row ? row.get({ plain: true }) : null;
   }
 
   async create(data) {
@@ -49,18 +55,17 @@ export class BaseRepository {
     return this.toDomain(row);
   }
 
-  async update(id, data) {
+  async update(id, data, { transaction } = {}) {
     if (!isUuid(id)) return null;
 
     const columns = this.toColumns(data);
-    // Пустое обновление разрешено схемой: поля не трогаем, но метку времени обновляем.
-    const values = Object.keys(columns).length > 0 ? columns : { updatedAt: new Date() };
+    // Пустое обновление разрешено схемой: менять нечего — отдаём запись как есть.
+    if (Object.keys(columns).length === 0) return this.findById(id, { transaction });
 
-    const [affected] = await this.model.update(values, { where: { id } });
+    const [affected] = await this.model.update(columns, { where: { id }, transaction });
     if (affected === 0) return null;
 
-    // Возвращаем ту же форму, что findById: клиенту не важно, как меняли запись.
-    return this.findById(id);
+    return this.findById(id, { transaction });
   }
 
   async delete(id) {
