@@ -168,6 +168,83 @@
       ]
     },
     {
+      "name": "Setup",
+      "description": "Определяет id из текущей базы: площадку, заявку с историей и двоих специалистов для тестов бригады. Идёт первой, поэтому остальные папки не зависят от конкретных значений.",
+      "item": [
+        {
+          "name": "Resolve site id",
+          "description": "Площадку берём из отчёта: отдельного справочника площадок в API нет.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const rows = pm.response.json().data;\r",
+                  "const withSite = rows.find((row) => row.siteId);\r",
+                  "pm.collectionVariables.set(\"siteId\", withSite.siteId);\r",
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"siteId resolved\", () => pm.expect(withSite.siteId).to.be.a(\"string\"));\r"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/equipment-load",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "equipment-load"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resolve seed request and technicians",
+          "description": "Заявка со статусом done нужна для проверки истории, двое исполнителей из сидов — для тестов бригады.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const list = pm.response.json().data;\r",
+                  "const team = list.find((item) => (item.assignees ?? []).length >= 2);\r",
+                  "const done = list.find((item) => item.status === \"done\");\r",
+                  "pm.collectionVariables.set(\"technicianId\", team.assignees[0].id);\r",
+                  "pm.collectionVariables.set(\"technicianId2\", team.assignees[1].id);\r",
+                  "pm.collectionVariables.set(\"historyRequestId\", done.id);\r",
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Seed data resolved\", () => {\r",
+                  "    pm.expect(team.assignees.length).to.be.at.least(2);\r",
+                  "    pm.expect(done.status).to.eql(\"done\");\r",
+                  "});\r"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Equipment",
       "item": [
         {
@@ -195,7 +272,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n  \"name\": \"Turbine A1\",\r\n  \"type\": \"turbine\",\r\n  \"serialNumber\": \"T-001\",\r\n  \"location\": { \"lat\": 55.75, \"lon\": 37.61 }\r\n}",
+              "raw": "{\r\n  \"name\": \"Turbine A1\",\r\n  \"type\": \"turbine\",\r\n  \"serialNumber\": \"T-{{$timestamp}}\",\r\n  \"location\": { \"lat\": 55.75, \"lon\": 37.61 }\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -355,7 +432,16 @@
           "name": "List Equipment",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment"
+              ]
+            }
           },
           "response": [
             {
@@ -487,7 +573,17 @@
           "name": "Get equipment by id",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipment/{{equipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment",
+                "{{equipmentId}}"
+              ]
+            }
           },
           "response": [
             {
@@ -792,43 +888,21 @@
           ]
         },
         {
-          "name": "Delete equipment",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 204 or 409\", () => {\r",
-                  "    pm.expect(pm.response.code).to.be.oneOf([204, 409]);\r",
-                  "});"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
+          "name": "Equipment requests",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/equipment/{{equipmentId}}",
+              "raw": "{{baseUrl}}/equipment/{{equipmentId}}/requests",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "equipment",
-                "{{equipmentId}}"
+                "{{equipmentId}}",
+                "requests"
               ]
             }
-          },
-          "response": []
-        },
-        {
-          "name": "Equipment requests",
-          "request": {
-            "method": "GET",
-            "header": []
           },
           "response": [
             {
@@ -962,7 +1036,18 @@
           "name": "Equipment weather",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipment/{{equipmentId}}/weather",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment",
+                "{{equipmentId}}",
+                "weather"
+              ]
+            }
           },
           "response": [
             {
@@ -1279,7 +1364,16 @@
           "name": "List requests",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests"
+              ]
+            }
           },
           "response": [
             {
@@ -1411,7 +1505,17 @@
           "name": "Get request by id",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}"
+              ]
+            }
           },
           "response": [
             {
@@ -1543,8 +1647,27 @@
         {
           "name": "Patch request",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"title\": \"Обновлённая заявка\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}"
+              ]
+            }
           },
           "response": [
             {
@@ -1685,8 +1808,28 @@
         {
           "name": "Change request status",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"status\": \"in_progress\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}",
+                "status"
+              ]
+            }
           },
           "response": [
             {
@@ -1826,133 +1969,48 @@
           ]
         },
         {
-          "name": "Delete request",
-          "request": {
-            "method": "GET",
-            "header": []
-          },
-          "response": [
-            {
-              "name": "204_deleted",
-              "originalRequest": {
-                "method": "DELETE",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/requests/{{requestId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "requests",
-                    "{{requestId}}"
-                  ]
-                }
-              },
-              "status": "No Content",
-              "code": 204,
-              "_postman_previewlanguage": null,
-              "header": [
-                {
-                  "key": "X-Request-Id",
-                  "value": "4f97ecbb-2605-4852-9cbd-2c077b4c6722"
-                },
-                {
-                  "key": "Content-Security-Policy",
-                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
-                },
-                {
-                  "key": "Cross-Origin-Opener-Policy",
-                  "value": "same-origin"
-                },
-                {
-                  "key": "Cross-Origin-Resource-Policy",
-                  "value": "same-origin"
-                },
-                {
-                  "key": "Origin-Agent-Cluster",
-                  "value": "?1"
-                },
-                {
-                  "key": "Referrer-Policy",
-                  "value": "no-referrer"
-                },
-                {
-                  "key": "Strict-Transport-Security",
-                  "value": "max-age=31536000; includeSubDomains"
-                },
-                {
-                  "key": "X-Content-Type-Options",
-                  "value": "nosniff"
-                },
-                {
-                  "key": "X-DNS-Prefetch-Control",
-                  "value": "off"
-                },
-                {
-                  "key": "X-Download-Options",
-                  "value": "noopen"
-                },
-                {
-                  "key": "X-Frame-Options",
-                  "value": "SAMEORIGIN"
-                },
-                {
-                  "key": "X-Permitted-Cross-Domain-Policies",
-                  "value": "none"
-                },
-                {
-                  "key": "X-XSS-Protection",
-                  "value": "0"
-                },
-                {
-                  "key": "Vary",
-                  "value": "Origin"
-                },
-                {
-                  "key": "Access-Control-Allow-Credentials",
-                  "value": "true"
-                },
-                {
-                  "key": "RateLimit-Policy",
-                  "value": "100;w=60"
-                },
-                {
-                  "key": "RateLimit-Limit",
-                  "value": "100"
-                },
-                {
-                  "key": "RateLimit-Remaining",
-                  "value": "99"
-                },
-                {
-                  "key": "RateLimit-Reset",
-                  "value": "60"
-                },
-                {
-                  "key": "Date",
-                  "value": "Sun, 20 Sep 2026 16:54:06 GMT"
-                },
-                {
-                  "key": "Connection",
-                  "value": "keep-alive"
-                },
-                {
-                  "key": "Keep-Alive",
-                  "value": "timeout=5"
-                }
-              ],
-              "cookie": [],
-              "body": null
-            }
-          ]
-        },
-        {
           "name": "Invalid status transition",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"done\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}",
+                "status"
+              ]
+            }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));\r"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
@@ -1963,7 +2021,17 @@
           "name": "Get non-existent equipment",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipment/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
           },
           "response": [
             {
@@ -2096,7 +2164,17 @@
           "name": "Invalid UUID",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipment/not-a-uuid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment",
+                "not-a-uuid"
+              ]
+            }
           },
           "response": [
             {
@@ -2228,8 +2306,26 @@
         {
           "name": "Empty body",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/equipment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment"
+              ]
+            }
           },
           "response": [
             {
@@ -2369,8 +2465,26 @@
         {
           "name": "Duplicate serialNumber",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Turbine A1\",\r\n  \"type\": \"turbine\",\r\n  \"serialNumber\": \"SN-WT-0001\",\r\n  \"location\": { \"lat\": 55.75, \"lon\": 37.61 }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/equipment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment"
+              ]
+            }
           },
           "response": [
             {
@@ -2505,13 +2619,46 @@
               "cookie": [],
               "body": "{\n    \"error\": {\n        \"code\": \"CONFLICT\",\n        \"message\": \"Оборудование с таким серийным номером уже существует\",\n        \"requestId\": \"d7b2a9a7-b8ca-4380-b48b-29620fe9af53\"\n    }\n}"
             }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Conflict is reported without database details\", () => {\r",
+                  "    const json = pm.response.json();\r",
+                  "    pm.expect(json.error.code).to.eql(\"CONFLICT\");\r",
+                  "});\r"
+                ],
+                "type": "text/javascript"
+              }
+            }
           ]
         },
         {
           "name": "Request for non-existent equipment",
           "request": {
-            "method": "GET",
-            "header": []
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"equipmentId\": \"00000000-0000-0000-0000-000000000000\",\r\n  \"title\": \"Заявка для несуществующего\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests\n\n",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests\n\n"
+              ]
+            }
           },
           "response": [
             {
@@ -2647,37 +2794,6 @@
               "body": "{\n    \"error\": {\n        \"code\": \"NOT_FOUND\",\n        \"message\": \"Эндпоинт не найден\",\n        \"requestId\": \"2ed34c6c-ca45-449f-8c8a-d37b5f7c11eb\"\n    }\n}"
             }
           ]
-        },
-        {
-          "name": "Rate limit",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 429\", () => pm.response.to.have.status(429));\r",
-                  "pm.test(\"Rate limit error\", () => pm.expect(pm.response.json().error.code).to.eql(\"RATE_LIMIT_EXCEEDED\"));"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "response": []
         }
       ]
     },
@@ -4439,6 +4555,209 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Cleanup",
+      "description": "Разрушающие проверки: удаление созданных записей и проверка лимита частоты. Идут последними, после всех зависимых тестов, поэтому не ломают порядок прогона.",
+      "item": [
+        {
+          "name": "Delete equipment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204 or 409\", () => {\r",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 409]);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/equipment/{{equipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment",
+                "{{equipmentId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete request",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "204_deleted",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/requests/{{requestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "requests",
+                    "{{requestId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "4f97ecbb-2605-4852-9cbd-2c077b4c6722"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "99"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 20 Sep 2026 16:54:06 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": null
+            }
+          ]
+        },
+        {
+          "name": "Rate limit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Answer is 200 or 429\", () => pm.expect(pm.response.code).to.be.oneOf([200, 429]));\r",
+                  "pm.test(\"Limited answer carries RATE_LIMIT_EXCEEDED\", () => {\r",
+                  "    if (pm.response.code !== 429) { pm.expect(pm.response.json().status).to.eql(\"ok\"); return; }\r",
+                  "    pm.expect(pm.response.json().error.code).to.eql(\"RATE_LIMIT_EXCEEDED\");\r",
+                  "});\r"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": [],
+          "description": "Лимит частоты: ответ 429 с кодом RATE_LIMIT_EXCEEDED приходит, когда за минуту превышен RATE_LIMIT_MAX (по умолчанию 100 запросов). Проверка принимает и 200, чтобы не зависеть от количества запросов в предыдущих папках."
+        }
+      ]
     }
   ],
   "event": [
@@ -4481,23 +4800,23 @@
     },
     {
       "key": "siteId",
-      "value": "1fcf332e-f5bf-4272-8c4a-3279a51953fd",
-      "description": "Площадка «Ветропарк Северный» (код VN-01). Если база пересеяна, обновите: SELECT id FROM sites WHERE code = 'VN-01';"
+      "value": "",
+      "description": "Площадка из сидов. Значение подставляет папка Setup при прогоне: отдельного справочника площадок в API нет, id берётся из отчёта."
     },
     {
       "key": "technicianId",
-      "value": "9c48a077-6705-46ee-a418-08c33c601e2a",
-      "description": "Техник EMP-001 — в тестах бригады играет роль lead. Обновить: SELECT id FROM technicians WHERE employee_number = 'EMP-001';"
+      "value": "",
+      "description": "Специалист из сидов (в тестах бригады играет роль lead). Значение подставляет папка Setup."
     },
     {
       "key": "technicianId2",
-      "value": "609c13ab-24b3-44b4-bf7c-6ebc9d923395",
-      "description": "Техник EMP-002 — в тестах бригады играет роль member. Обновить: SELECT id FROM technicians WHERE employee_number = 'EMP-002';"
+      "value": "",
+      "description": "Специалист из сидов (в тестах бригады играет роль member). Значение подставляет папка Setup."
     },
     {
       "key": "historyRequestId",
-      "value": "ac54176c-c3d4-4c29-8f30-8854d1ff2d0e",
-      "description": "Заявка из сидов со статусом done: в истории три перехода (new → in_progress → done)."
+      "value": "",
+      "description": "Заявка из сидов со статусом done: в истории есть цепочка переходов. Значение подставляет папка Setup."
     }
   ]
 }
