@@ -1,5 +1,6 @@
+import { Op, col, fn } from 'sequelize';
 import { BaseRepository } from './BaseRepository.js';
-import { Site } from '../db/models/index.js';
+import { Equipment, MaintenanceRequest, RequestAssignee, Site } from '../db/models/index.js';
 
 const SORTABLE = ['name', 'code', 'region', 'createdAt', 'updatedAt'];
 
@@ -22,6 +23,11 @@ function toSite(instance) {
   };
 }
 
+// GROUP BY отдаёт строки вида { status, total } — приводим их к карте статусов.
+function toCounts(rows) {
+  return Object.fromEntries(rows.map((row) => [row.status, Number(row.total)]));
+}
+
 // Репозиторий площадок: справочник пока не выведен в API, нужны базовые операции.
 export class SiteRepository extends BaseRepository {
   constructor() {
@@ -34,6 +40,55 @@ export class SiteRepository extends BaseRepository {
     const row = await Site.findOne({ where: { code } });
 
     return row ? toSite(row) : null;
+  }
+
+  // Сводка площадки: считаем в базе, наружу отдаём готовые карты «статус → количество».
+  async countEquipmentByStatus(siteId) {
+    const rows = await Equipment.findAll({
+      where: { siteId },
+      attributes: ['status', [fn('COUNT', col('id')), 'total']],
+      group: ['status'],
+      raw: true,
+    });
+
+    return toCounts(rows);
+  }
+
+  async findEquipmentIds(siteId) {
+    const rows = await Equipment.findAll({ where: { siteId }, attributes: ['id'], raw: true });
+
+    return rows.map((row) => row.id);
+  }
+
+  // Заявки площадки отбираем по её оборудованию: join здесь лишний.
+  async countRequestsByStatus(equipmentIds) {
+    if (equipmentIds.length === 0) return {};
+
+    const rows = await MaintenanceRequest.findAll({
+      where: { equipmentId: { [Op.in]: equipmentIds } },
+      attributes: ['status', [fn('COUNT', col('id')), 'total']],
+      group: ['status'],
+      raw: true,
+    });
+
+    return toCounts(rows);
+  }
+
+  async sumPlannedHours(equipmentIds) {
+    if (equipmentIds.length === 0) return 0;
+
+    const requests = await MaintenanceRequest.findAll({
+      where: { equipmentId: { [Op.in]: equipmentIds } },
+      attributes: ['id'],
+      raw: true,
+    });
+    if (requests.length === 0) return 0;
+
+    const hours = await RequestAssignee.sum('hours', {
+      where: { requestId: { [Op.in]: requests.map((row) => row.id) } },
+    });
+
+    return hours === null ? 0 : Number(hours);
   }
 
   // location из тела запроса раскладываем в колонки lat/lon.
