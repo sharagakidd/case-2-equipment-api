@@ -52,6 +52,7 @@ export function toEquipment(instance) {
   const row = plain(instance);
   const equipment = {
     id: row.id,
+    siteId: row.siteId,
     name: row.name,
     type: row.type,
     serialNumber: row.serialNumber,

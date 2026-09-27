@@ -34,15 +34,20 @@ export const requestController = {
   },
 
   // Состав бригады приходит в теле, правила (ровно один lead, дубли) проверяет сервис.
+  // Назначения создаются заново, поэтому отвечаем 201 и адресом подресурса бригады.
   assignTeam: async (req, res) => {
     const item = await requestService.assignTeam(req.params.id, req.valid.body.assignees);
-    sendOne(res, item);
+    res
+      .status(201)
+      .location(`/api/requests/${req.params.id}/assignees`)
+      .json({ data: item });
   },
 
   // :userId — идентификатор техника из справочника, в сервис уходит как technicianId.
+  // Удалили — отдаём 204 без тела: перечитывать заявку ради этого не нужно.
   removeAssignee: async (req, res) => {
-    const item = await requestService.removeAssignee(req.params.id, req.valid.params.userId);
-    sendOne(res, item);
+    await requestService.removeAssignee(req.params.id, req.valid.params.userId);
+    res.status(204).send();
   },
 
   history: async (req, res) => {
