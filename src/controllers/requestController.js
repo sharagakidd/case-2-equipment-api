@@ -1,12 +1,9 @@
 import { requestService } from '../services/requestService.js';
 import { sendList, sendOne } from '../utils/response.js';
 
-// HTTP-слой заявок. Список заявок по технике отдаём через getAll с фильтром,
-// а getByEquipmentId вызываем как проверку существования техники (404).
 export const requestController = {
   list: async (req, res) => {
-    // sortBy/order не поля сущности: в filters они попасть не должны, иначе
-    // выборка окажется пустой, а сортировка не применится.
+    // sortBy/order не поля сущности — в filters их не отдаём.
     const { page, limit, sortBy, order, ...filters } = req.valid.query;
     const sort = sortBy ? (order === 'desc' ? `-${sortBy}` : sortBy) : undefined;
 
@@ -29,9 +26,28 @@ export const requestController = {
     sendOne(res, item);
   },
 
+  // author из тела уходит в историю смены статуса.
   changeStatus: async (req, res) => {
-    const item = await requestService.changeStatus(req.params.id, req.valid.body.status);
+    const { status, author } = req.valid.body;
+    const item = await requestService.changeStatus(req.params.id, status, author);
     sendOne(res, item);
+  },
+
+  // Состав бригады приходит в теле, правила (ровно один lead, дубли) проверяет сервис.
+  assignTeam: async (req, res) => {
+    const item = await requestService.assignTeam(req.params.id, req.valid.body.assignees);
+    sendOne(res, item);
+  },
+
+  // :userId — идентификатор техника из справочника, в сервис уходит как technicianId.
+  removeAssignee: async (req, res) => {
+    const item = await requestService.removeAssignee(req.params.id, req.valid.params.userId);
+    sendOne(res, item);
+  },
+
+  history: async (req, res) => {
+    const history = await requestService.getHistory(req.params.id);
+    sendOne(res, history);
   },
 
   remove: async (req, res) => {
@@ -39,7 +55,6 @@ export const requestController = {
     res.status(204).send();
   },
 
-  // Вложенный маршрут GET /equipment/:id/requests.
   getByEquipment: async (req, res) => {
     const { page = 1, limit = 20, status, priority, sortBy, order } = req.valid?.query ?? {};
 
