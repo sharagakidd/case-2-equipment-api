@@ -16,6 +16,8 @@ const EQUIPMENT_LOAD_SQL = `
     AND ($1::timestamptz IS NULL OR r."createdAt" >= $1)
     AND ($2::timestamptz IS NULL OR r."createdAt" <= $2)
   LEFT JOIN request_assignees ra ON ra.request_id = r.id
+  -- Мягко удалённое оборудование отсекаем руками: paranoid фильтрует только ORM-выборки.
+  WHERE e."deletedAt" IS NULL
   GROUP BY e.id
   HAVING COUNT(r.id) >= $3
   ORDER BY total_requests DESC

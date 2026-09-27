@@ -28,6 +28,8 @@ Equipment.init(
       type: DataTypes.STRING(64),
       field: 'serial_number',
       allowNull: false,
+      // В базе уникальность держит частичный индекс equipment_serial_number_active_key
+      // (миграция 08): номер мягко удалённой единицы можно занять заново.
       unique: true,
     },
     status: {
@@ -45,5 +47,8 @@ Equipment.init(
     modelName: 'Equipment',
     tableName: 'equipment',
     timestamps: true,
+    // Мягкое удаление (миграция 08-add-equipment-deleted-at.js): destroy() не удаляет
+    // строку, а проставляет deletedAt, и Sequelize сам исключает её из выборок.
+    paranoid: true,
   },
 );

@@ -39,6 +39,8 @@ const EQUIPMENT_LOAD_SQL = `
     GROUP BY mr.equipment_id
   ) AS h ON h.equipment_id = e.id
   WHERE (CAST(:siteId AS uuid) IS NULL OR e.site_id = CAST(:siteId AS uuid))
+    -- Мягко удалённое оборудование отсекаем руками: paranoid фильтрует только ORM-выборки.
+    AND e."deletedAt" IS NULL
   ORDER BY COALESCE(r.open_requests, 0) DESC, COALESCE(r.total_requests, 0) DESC, e.name ASC
 `;
 
