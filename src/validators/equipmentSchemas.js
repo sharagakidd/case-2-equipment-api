@@ -14,10 +14,14 @@ const equipmentFields = {
   installedAt: z.iso
     .datetime()
     .refine((d) => new Date(d) <= new Date(), 'Дата не может быть в будущем'),
+  // Площадка необязательна: оборудование может стоять вне площадки (в базе site_id допускает NULL).
+  // Несуществующий id отсекает внешний ключ: ошибка целостности превращается в 422.
+  siteId: z.uuid().nullable(),
 };
 
 export const createEquipmentSchema = z.object({
   ...equipmentFields,
+  siteId: equipmentFields.siteId.optional(),
   status: equipmentFields.status.default('operational'),
   installedAt: equipmentFields.installedAt.optional(),
 });

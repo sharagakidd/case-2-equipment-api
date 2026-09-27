@@ -75,7 +75,7 @@ export class BaseRepository {
       return (await this.model.destroy({ where: { id } })) > 0;
     } catch (error) {
       // Связанные строки держат запись: отдаём конфликт, а не ошибку сервера.
-      if (error instanceof ForeignKeyConstraintError) throw new ConflictError(this.referencedMessage());
+      if (isReferenceViolation(error)) throw new ConflictError(this.referencedMessage());
       throw error;
     }
   }
@@ -137,6 +137,15 @@ export class BaseRepository {
 
     return { limit, offset: (page - 1) * limit };
   }
+}
+
+// PostgreSQL запрещает удаление родителя двумя кодами: 23503 (нарушение внешнего ключа) и
+// 23001 (restrict_violation от ON DELETE RESTRICT). В ForeignKeyConstraintError Sequelize
+// превращает только первый, поэтому второй распознаём по коду драйвера — иначе выйдет 500.
+export function isReferenceViolation(error) {
+  const code = error.parent?.code ?? error.original?.code;
+
+  return error instanceof ForeignKeyConstraintError || code === '23503' || code === '23001';
 }
 
 // Значение фильтра: массив — «любое из», объект — диапазон, одно значение — совпадение.
