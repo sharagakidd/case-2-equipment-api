@@ -2680,6 +2680,1765 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Assignees",
+      "description": "Бригада заявки: POST заменяет состав целиком, поэтому отвечает 201 и адресом подресурса. Правила «ровно один lead» и отсутствие дублей проверяет сервис (422), DELETE снимает одного исполнителя (204). Перед запуском выполните Requests → Create request: URL использует {{requestId}}, а техники — переменные {{technicianId}} и {{technicianId2}} (значения из сидов).",
+      "item": [
+        {
+          "name": "Assign team",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"Location points to the assignees subresource\", () => {\r",
+                  "    pm.expect(pm.response.headers.get(\"Location\")).to.match(/\\/api\\/requests\\/[0-9a-f-]{36}\\/assignees$/);\r",
+                  "});\r",
+                  "pm.test(\"Team is replaced: two assignees, exactly one lead\", () => {\r",
+                  "    const json = pm.response.json();\r",
+                  "    pm.expect(json.data.assignees).to.have.lengthOf(2);\r",
+                  "    pm.expect(json.data.assignees.filter((assignee) => assignee.role === \"lead\")).to.have.lengthOf(1);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"assignees\": [\r\n    {\r\n      \"technicianId\": \"{{technicianId}}\",\r\n      \"role\": \"lead\",\r\n      \"hours\": 4\r\n    },\r\n    {\r\n      \"technicianId\": \"{{technicianId2}}\",\r\n      \"role\": \"member\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}/assignees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}",
+                "assignees"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "201_assigned",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"assignees\": [\r\n    {\r\n      \"technicianId\": \"{{technicianId}}\",\r\n      \"role\": \"lead\",\r\n      \"hours\": 4\r\n    },\r\n    {\r\n      \"technicianId\": \"{{technicianId2}}\",\r\n      \"role\": \"member\"\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/requests/{{requestId}}/assignees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "requests",
+                    "{{requestId}}",
+                    "assignees"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "424d7087-1d31-4ffa-971f-fd936520c9b5"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "98"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Location",
+                  "value": "/api/requests/8adba599-49c1-4011-87c7-aea1be7d99dc/assignees"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "1120"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"460-jbfG7PlUQVP77Yi/Mvglxzntdnw\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"data\": {\r\n    \"id\": \"8adba599-49c1-4011-87c7-aea1be7d99dc\",\r\n    \"equipmentId\": \"5326784f-3580-4899-9b1a-f094b5aae614\",\r\n    \"title\": \"Тестовая заявка (бригада)\",\r\n    \"description\": null,\r\n    \"priority\": \"high\",\r\n    \"status\": \"new\",\r\n    \"plannedAt\": null,\r\n    \"author\": null,\r\n    \"createdAt\": \"2026-09-27T08:51:59.700Z\",\r\n    \"updatedAt\": \"2026-09-27T08:51:59.700Z\",\r\n    \"equipment\": {\r\n      \"id\": \"5326784f-3580-4899-9b1a-f094b5aae614\",\r\n      \"siteId\": \"4d27587c-6264-4e26-808a-a86a79c5a6ae\",\r\n      \"name\": \"Сетевой инвертор №1\",\r\n      \"type\": \"inverter\",\r\n      \"serialNumber\": \"SN-INV-0001\",\r\n      \"status\": \"operational\",\r\n      \"location\": {\r\n        \"lat\": 45.03547,\r\n        \"lon\": 38.975313\r\n      },\r\n      \"installedAt\": \"2022-08-20T00:00:00.000Z\",\r\n      \"createdAt\": \"2026-01-15T09:00:00.000Z\",\r\n      \"updatedAt\": \"2026-01-15T09:00:00.000Z\"\r\n    },\r\n    \"assignees\": [\r\n      {\r\n        \"id\": \"9c48a077-6705-46ee-a418-08c33c601e2a\",\r\n        \"fullName\": \"Иванов Иван Иванович\",\r\n        \"specialization\": \"Механик\",\r\n        \"employeeNumber\": \"EMP-001\",\r\n        \"role\": \"lead\",\r\n        \"hours\": 4\r\n      },\r\n      {\r\n        \"id\": \"609c13ab-24b3-44b4-bf7c-6ebc9d923395\",\r\n        \"fullName\": \"Петров Пётр Петрович\",\r\n        \"specialization\": \"Электромонтёр\",\r\n        \"employeeNumber\": \"EMP-002\",\r\n        \"role\": \"member\",\r\n        \"hours\": null\r\n      }\r\n    ],\r\n    \"history\": []\r\n  }\r\n}"
+            }
+          ]
+        },
+        {
+          "name": "Two leads",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));\r",
+                  "pm.test(\"Only one lead is allowed\", () => {\r",
+                  "    const json = pm.response.json();\r",
+                  "    pm.expect(json.error.code).to.eql(\"VALIDATION_ERROR\");\r",
+                  "    pm.expect(json.error.details[0].field).to.eql(\"assignees\");\r",
+                  "    pm.expect(json.error.details[0].message).to.include(\"lead\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"assignees\": [\r\n    {\r\n      \"technicianId\": \"{{technicianId}}\",\r\n      \"role\": \"lead\",\r\n      \"hours\": 4\r\n    },\r\n    {\r\n      \"technicianId\": \"{{technicianId2}}\",\r\n      \"role\": \"lead\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}/assignees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}",
+                "assignees"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "422_two_leads",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"assignees\": [\r\n    {\r\n      \"technicianId\": \"{{technicianId}}\",\r\n      \"role\": \"lead\",\r\n      \"hours\": 4\r\n    },\r\n    {\r\n      \"technicianId\": \"{{technicianId2}}\",\r\n      \"role\": \"lead\"\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/requests/{{requestId}}/assignees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "requests",
+                    "{{requestId}}",
+                    "assignees"
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "84f0bc64-73b5-4da6-9259-b08330c72401"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "97"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "270"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"10e-5+DIB6UKZ0RGSufNX4DFUVEMTMA\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"error\": {\r\n    \"code\": \"VALIDATION_ERROR\",\r\n    \"message\": \"Некорректный состав бригады\",\r\n    \"requestId\": \"84f0bc64-73b5-4da6-9259-b08330c72401\",\r\n    \"details\": [\r\n      {\r\n        \"field\": \"assignees\",\r\n        \"message\": \"Нужен ровно один специалист с ролью lead\"\r\n      }\r\n    ]\r\n  }\r\n}"
+            }
+          ]
+        },
+        {
+          "name": "No lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));\r",
+                  "pm.test(\"A lead is required\", () => {\r",
+                  "    const json = pm.response.json();\r",
+                  "    pm.expect(json.error.code).to.eql(\"VALIDATION_ERROR\");\r",
+                  "    pm.expect(json.error.details[0].message).to.include(\"lead\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"assignees\": [\r\n    {\r\n      \"technicianId\": \"{{technicianId}}\",\r\n      \"role\": \"member\",\r\n      \"hours\": 4\r\n    },\r\n    {\r\n      \"technicianId\": \"{{technicianId2}}\",\r\n      \"role\": \"member\"\r\n    }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}/assignees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}",
+                "assignees"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "422_no_lead",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"assignees\": [\r\n    {\r\n      \"technicianId\": \"{{technicianId}}\",\r\n      \"role\": \"member\",\r\n      \"hours\": 4\r\n    },\r\n    {\r\n      \"technicianId\": \"{{technicianId2}}\",\r\n      \"role\": \"member\"\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/requests/{{requestId}}/assignees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "requests",
+                    "{{requestId}}",
+                    "assignees"
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "fd787f28-06af-4f04-9234-b9df8dbe07c6"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "96"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "270"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"10e-z8wd1VaAHbZOUscDNR/UlevFkE4\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"error\": {\r\n    \"code\": \"VALIDATION_ERROR\",\r\n    \"message\": \"Некорректный состав бригады\",\r\n    \"requestId\": \"fd787f28-06af-4f04-9234-b9df8dbe07c6\",\r\n    \"details\": [\r\n      {\r\n        \"field\": \"assignees\",\r\n        \"message\": \"Нужен ровно один специалист с ролью lead\"\r\n      }\r\n    ]\r\n  }\r\n}"
+            }
+          ]
+        },
+        {
+          "name": "Remove assignee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));\r",
+                  "pm.test(\"No body\", () => pm.expect(pm.response.text()).to.be.empty);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{requestId}}/assignees/{{technicianId2}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{requestId}}",
+                "assignees",
+                "{{technicianId2}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "204_removed",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/requests/{{requestId}}/assignees/{{technicianId2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "requests",
+                    "{{requestId}}",
+                    "assignees",
+                    "{{technicianId2}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "b2372178-314a-462c-b285-3395c357b6e1"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "95"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "description": "История смен статуса заявки: таблица только на добавление, старые записи не перезаписываются. В {{historyRequestId}} подставлена заявка из сидов с готовой цепочкой переходов (new → in_progress → done); для своей заявки подставьте её id.",
+      "item": [
+        {
+          "name": "Request history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"History is a non-empty chain of transitions\", () => {\r",
+                  "    const history = pm.response.json().data;\r",
+                  "    pm.expect(history).to.be.an(\"array\").that.is.not.empty;\r",
+                  "    pm.expect(history[0].oldStatus).to.eql(null);\r",
+                  "    pm.expect(history[history.length - 1].newStatus).to.not.eql(null);\r",
+                  "    pm.expect(history.every((entry) => entry.newStatus && entry.createdAt !== undefined)).to.be.true;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/requests/{{historyRequestId}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requests",
+                "{{historyRequestId}}",
+                "history"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200_history",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/requests/{{historyRequestId}}/history",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "requests",
+                    "{{historyRequestId}}",
+                    "history"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "baae6a3d-00ca-4c57-88da-9a0831b44403"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "94"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "694"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"2b6-2o/hAf63HNBHWFcvEMUU+YVGhRg\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"data\": [\r\n    {\r\n      \"id\": \"337c9e60-94aa-4c62-a9cd-e77dafae4aa0\",\r\n      \"oldStatus\": null,\r\n      \"newStatus\": \"new\",\r\n      \"author\": \"Петров П.П.\",\r\n      \"comment\": \"Заявка зарегистрирована\",\r\n      \"createdAt\": \"2026-07-06T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"9fb9d176-5e60-40c3-914c-b3c740b36555\",\r\n      \"oldStatus\": \"new\",\r\n      \"newStatus\": \"in_progress\",\r\n      \"author\": \"Петров П.П.\",\r\n      \"comment\": \"Работы начаты, заявка в работе\",\r\n      \"createdAt\": \"2026-07-07T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"8729b2a1-123f-4e66-9ada-753029709ee1\",\r\n      \"oldStatus\": \"in_progress\",\r\n      \"newStatus\": \"done\",\r\n      \"author\": \"Петров П.П.\",\r\n      \"comment\": \"Работы завершены, оборудование в работе\",\r\n      \"createdAt\": \"2026-07-09T00:00:00.000Z\"\r\n    }\r\n  ]\r\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sites",
+      "description": "Сводка по площадке: оборудование и заявки по статусам, число открытых заявок и плановые часы. {{siteId}} — площадка «Ветропарк Северный» (код VN-01) из сидов.",
+      "item": [
+        {
+          "name": "Site summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Summary describes the requested site\", () => {\r",
+                  "    const summary = pm.response.json().data;\r",
+                  "    pm.expect(summary.site.id).to.eql(pm.variables.replaceIn(\"{{siteId}}\"));\r",
+                  "    pm.expect(Object.keys(summary.requests.byStatus)).to.have.members([\"new\", \"in_progress\", \"done\", \"rejected\"]);\r",
+                  "    pm.expect(summary.equipment.total).to.eql(\r",
+                  "        Object.values(summary.equipment.byStatus).reduce((sum, value) => sum + value, 0),\r",
+                  "    );\r",
+                  "    pm.expect(summary.requests.open).to.be.at.most(summary.requests.total);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sites/{{siteId}}/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sites",
+                "{{siteId}}",
+                "summary"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200_summary",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/sites/{{siteId}}/summary",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "sites",
+                    "{{siteId}}",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "a7d4e4f1-feb6-48f6-b465-4ac316fa18fd"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "93"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "517"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"205-UyIqOR4oFO3b3/fZ50BzfIbupgI\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"data\": {\r\n    \"site\": {\r\n      \"id\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"name\": \"Ветропарк Северный\",\r\n      \"code\": \"VN-01\",\r\n      \"region\": \"Мурманская область\",\r\n      \"location\": {\r\n        \"lat\": 68.958333,\r\n        \"lon\": 33.082778\r\n      },\r\n      \"createdAt\": \"2026-01-12T08:00:00.000Z\",\r\n      \"updatedAt\": \"2026-01-12T08:00:00.000Z\"\r\n    },\r\n    \"equipment\": {\r\n      \"total\": 3,\r\n      \"byStatus\": {\r\n        \"operational\": 1,\r\n        \"maintenance\": 1,\r\n        \"fault\": 1,\r\n        \"decommissioned\": 0\r\n      }\r\n    },\r\n    \"requests\": {\r\n      \"total\": 14,\r\n      \"open\": 8,\r\n      \"byStatus\": {\r\n        \"new\": 4,\r\n        \"in_progress\": 4,\r\n        \"done\": 4,\r\n        \"rejected\": 2\r\n      }\r\n    },\r\n    \"assignees\": {\r\n      \"plannedHours\": 40.5\r\n    }\r\n  }\r\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "description": "Аналитика по загрузке оборудования: счётчики заявок и часы исполнителей считает база (COUNT/SUM, FILTER-агрегаты, raw SQL). Без параметров — по всем площадкам, с siteId — по одной.",
+      "item": [
+        {
+          "name": "Equipment load (all sites)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Every equipment row has load counters\", () => {\r",
+                  "    const rows = pm.response.json().data;\r",
+                  "    pm.expect(rows).to.be.an(\"array\").that.is.not.empty;\r",
+                  "    rows.forEach((row) => {\r",
+                  "        pm.expect(row).to.have.property(\"totalRequests\");\r",
+                  "        pm.expect(row).to.have.property(\"openRequests\");\r",
+                  "        pm.expect(row).to.have.property(\"plannedHours\");\r",
+                  "    });\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/equipment-load",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "equipment-load"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200_all_sites",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/equipment-load",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "equipment-load"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "87cacb5e-2159-4ef9-a5ba-3a3f079aa16b"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "91"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "2395"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"95b-JtHK55BrlxSw4WxW+bxeWnEZDn0\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"data\": [\r\n    {\r\n      \"id\": \"7cd9ca48-99da-4e05-a51c-dcb81b79d684\",\r\n      \"name\": \"Ветротурбина №3\",\r\n      \"type\": \"turbine\",\r\n      \"serialNumber\": \"SN-WT-0003\",\r\n      \"equipmentStatus\": \"fault\",\r\n      \"siteId\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"siteName\": \"Ветропарк Северный\",\r\n      \"totalRequests\": 5,\r\n      \"openRequests\": 3,\r\n      \"overdueRequests\": 2,\r\n      \"doneRequests\": 1,\r\n      \"plannedHours\": 4,\r\n      \"lastRequestAt\": \"2026-09-25T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"39946044-a0f9-4396-b139-9bda28c2b519\",\r\n      \"name\": \"Ветротурбина №2\",\r\n      \"type\": \"turbine\",\r\n      \"serialNumber\": \"SN-WT-0002\",\r\n      \"equipmentStatus\": \"maintenance\",\r\n      \"siteId\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"siteName\": \"Ветропарк Северный\",\r\n      \"totalRequests\": 4,\r\n      \"openRequests\": 3,\r\n      \"overdueRequests\": 1,\r\n      \"doneRequests\": 0,\r\n      \"plannedHours\": 0,\r\n      \"lastRequestAt\": \"2026-09-24T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"a55827b7-7357-4411-abf0-fe0c2cb037fe\",\r\n      \"name\": \"Ветротурбина №1\",\r\n      \"type\": \"turbine\",\r\n      \"serialNumber\": \"SN-WT-0001\",\r\n      \"equipmentStatus\": \"operational\",\r\n      \"siteId\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"siteName\": \"Ветропарк Северный\",\r\n      \"totalRequests\": 5,\r\n      \"openRequests\": 2,\r\n      \"overdueRequests\": 1,\r\n      \"doneRequests\": 3,\r\n      \"plannedHours\": 36.5,\r\n      \"lastRequestAt\": \"2026-09-24T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"5326784f-3580-4899-9b1a-f094b5aae614\",\r\n      \"name\": \"Сетевой инвертор №1\",\r\n      \"type\": \"inverter\",\r\n      \"serialNumber\": \"SN-INV-0001\",\r\n      \"equipmentStatus\": \"operational\",\r\n      \"siteId\": \"4d27587c-6264-4e26-808a-a86a79c5a6ae\",\r\n      \"siteName\": \"Солнечная станция Южная\",\r\n      \"totalRequests\": 4,\r\n      \"openRequests\": 2,\r\n      \"overdueRequests\": 0,\r\n      \"doneRequests\": 1,\r\n      \"plannedHours\": 19,\r\n      \"lastRequestAt\": \"2026-09-27T08:51:59.700Z\"\r\n    },\r\n    {\r\n      \"id\": \"48852283-d999-4c30-bee2-63054d7a40b5\",\r\n      \"name\": \"Метеостанция\",\r\n      \"type\": \"sensor\",\r\n      \"serialNumber\": \"SN-SEN-0001\",\r\n      \"equipmentStatus\": \"operational\",\r\n      \"siteId\": \"4d27587c-6264-4e26-808a-a86a79c5a6ae\",\r\n      \"siteName\": \"Солнечная станция Южная\",\r\n      \"totalRequests\": 2,\r\n      \"openRequests\": 1,\r\n      \"overdueRequests\": 1,\r\n      \"doneRequests\": 1,\r\n      \"plannedHours\": 3,\r\n      \"lastRequestAt\": \"2026-09-20T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"3e24b9bb-0456-4003-9055-10563d5adbf7\",\r\n      \"name\": \"Подстанция 110/10 кВ\",\r\n      \"type\": \"substation\",\r\n      \"serialNumber\": \"SN-SUB-0001\",\r\n      \"equipmentStatus\": \"decommissioned\",\r\n      \"siteId\": \"4d27587c-6264-4e26-808a-a86a79c5a6ae\",\r\n      \"siteName\": \"Солнечная станция Южная\",\r\n      \"totalRequests\": 1,\r\n      \"openRequests\": 1,\r\n      \"overdueRequests\": 0,\r\n      \"doneRequests\": 0,\r\n      \"plannedHours\": 0,\r\n      \"lastRequestAt\": \"2026-09-19T00:00:00.000Z\"\r\n    }\r\n  ]\r\n}"
+            }
+          ]
+        },
+        {
+          "name": "Equipment load (one site)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Rows belong to the requested site only\", () => {\r",
+                  "    const siteId = pm.variables.replaceIn(\"{{siteId}}\");\r",
+                  "    const rows = pm.response.json().data;\r",
+                  "    pm.expect(rows.every((row) => row.siteId === siteId)).to.be.true;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/equipment-load?siteId={{siteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "equipment-load"
+              ],
+              "query": [
+                {
+                  "key": "siteId",
+                  "value": "{{siteId}}"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200_one_site",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/equipment-load?siteId={{siteId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "equipment-load"
+                  ],
+                  "query": [
+                    {
+                      "key": "siteId",
+                      "value": "{{siteId}}"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "6fb5e2a8-6294-4011-bf19-32c85ca690e4"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "92"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "1180"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"49c-mXRLffR9r5UhnZdafbFiGAHDTvY\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"data\": [\r\n    {\r\n      \"id\": \"7cd9ca48-99da-4e05-a51c-dcb81b79d684\",\r\n      \"name\": \"Ветротурбина №3\",\r\n      \"type\": \"turbine\",\r\n      \"serialNumber\": \"SN-WT-0003\",\r\n      \"equipmentStatus\": \"fault\",\r\n      \"siteId\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"siteName\": \"Ветропарк Северный\",\r\n      \"totalRequests\": 5,\r\n      \"openRequests\": 3,\r\n      \"overdueRequests\": 2,\r\n      \"doneRequests\": 1,\r\n      \"plannedHours\": 4,\r\n      \"lastRequestAt\": \"2026-09-25T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"39946044-a0f9-4396-b139-9bda28c2b519\",\r\n      \"name\": \"Ветротурбина №2\",\r\n      \"type\": \"turbine\",\r\n      \"serialNumber\": \"SN-WT-0002\",\r\n      \"equipmentStatus\": \"maintenance\",\r\n      \"siteId\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"siteName\": \"Ветропарк Северный\",\r\n      \"totalRequests\": 4,\r\n      \"openRequests\": 3,\r\n      \"overdueRequests\": 1,\r\n      \"doneRequests\": 0,\r\n      \"plannedHours\": 0,\r\n      \"lastRequestAt\": \"2026-09-24T00:00:00.000Z\"\r\n    },\r\n    {\r\n      \"id\": \"a55827b7-7357-4411-abf0-fe0c2cb037fe\",\r\n      \"name\": \"Ветротурбина №1\",\r\n      \"type\": \"turbine\",\r\n      \"serialNumber\": \"SN-WT-0001\",\r\n      \"equipmentStatus\": \"operational\",\r\n      \"siteId\": \"1fcf332e-f5bf-4272-8c4a-3279a51953fd\",\r\n      \"siteName\": \"Ветропарк Северный\",\r\n      \"totalRequests\": 5,\r\n      \"openRequests\": 2,\r\n      \"overdueRequests\": 1,\r\n      \"doneRequests\": 3,\r\n      \"plannedHours\": 36.5,\r\n      \"lastRequestAt\": \"2026-09-24T00:00:00.000Z\"\r\n    }\r\n  ]\r\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Negative Sequelize",
+      "description": "Ошибки уровня базы: уникальный индекс и внешний ключ. Проверяют, что нарушение целостности не превращается в 500, а отдаётся понятным кодом (409/422) без имён таблиц и ограничений.",
+      "item": [
+        {
+          "name": "Duplicate serialNumber",
+          "description": "Дубль серийного номера ловит сначала сервис (проверка findBySerialNumber — быстрый путь), вторая линия защиты — уникальный индекс equipment_serial_number_key. Если запись проскочит сервис, Sequelize бросит UniqueConstraintError, который errorHandler тоже отдаёт как 409 CONFLICT.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));\r",
+                  "pm.test(\"Conflict is reported without database details\", () => {\r",
+                  "    const json = pm.response.json();\r",
+                  "    pm.expect(json.error.code).to.eql(\"CONFLICT\");\r",
+                  "    pm.expect(json.error.message).to.include(\"серийным номером\");\r",
+                  "    pm.expect(json.error.message).to.not.include(\"constraint\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Дубль серийного номера\",\r\n  \"type\": \"turbine\",\r\n  \"serialNumber\": \"SN-WT-0001\",\r\n  \"location\": {\r\n    \"lat\": 55.75,\r\n    \"lon\": 37.61\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/equipment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "409_duplicate_serial_number",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"name\": \"Дубль серийного номера\",\r\n  \"type\": \"turbine\",\r\n  \"serialNumber\": \"SN-WT-0001\",\r\n  \"location\": {\r\n    \"lat\": 55.75,\r\n    \"lon\": 37.61\r\n  }\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/equipment",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "equipment"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "dcedcb90-10d6-4260-8822-ea4832017f4e"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "90"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "191"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"bf-DMIY7Fe1I8iuX05dgIiUg8UWEPA\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"error\": {\r\n    \"code\": \"CONFLICT\",\r\n    \"message\": \"Оборудование с таким серийным номером уже существует\",\r\n    \"requestId\": \"dcedcb90-10d6-4260-8822-ea4832017f4e\"\r\n  }\r\n}"
+            }
+          ]
+        },
+        {
+          "name": "Foreign key violation",
+          "description": "siteId — синтаксически верный UUID, но такой площадки нет: PostgreSQL отклоняет UPDATE по внешнему ключу equipment_site_id_fkey, errorHandler превращает ForeignKeyConstraintError в 422 VALIDATION_ERROR. Требуется {{equipmentId}} — выполните Equipment → Create equipment.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));\r",
+                  "pm.test(\"Foreign key violation is mapped to VALIDATION_ERROR\", () => {\r",
+                  "    const json = pm.response.json();\r",
+                  "    pm.expect(json.error.code).to.eql(\"VALIDATION_ERROR\");\r",
+                  "    pm.expect(json.error.message).to.include(\"связанную запись\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"siteId\": \"00000000-0000-0000-0000-000000000000\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/equipment/{{equipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "equipment",
+                "{{equipmentId}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "422_foreign_key_violation",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"siteId\": \"00000000-0000-0000-0000-000000000000\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/equipment/{{equipmentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "equipment",
+                    "{{equipmentId}}"
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "X-Request-Id",
+                  "value": "bbdda416-a826-4c6e-88d0-6dc04b281e1c"
+                },
+                {
+                  "key": "Content-Security-Policy",
+                  "value": "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests"
+                },
+                {
+                  "key": "Cross-Origin-Opener-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Cross-Origin-Resource-Policy",
+                  "value": "same-origin"
+                },
+                {
+                  "key": "Origin-Agent-Cluster",
+                  "value": "?1"
+                },
+                {
+                  "key": "Referrer-Policy",
+                  "value": "no-referrer"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=31536000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-DNS-Prefetch-Control",
+                  "value": "off"
+                },
+                {
+                  "key": "X-Download-Options",
+                  "value": "noopen"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "X-Permitted-Cross-Domain-Policies",
+                  "value": "none"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "RateLimit-Policy",
+                  "value": "100;w=60"
+                },
+                {
+                  "key": "RateLimit-Limit",
+                  "value": "100"
+                },
+                {
+                  "key": "RateLimit-Remaining",
+                  "value": "89"
+                },
+                {
+                  "key": "RateLimit-Reset",
+                  "value": "60"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "194"
+                },
+                {
+                  "key": "ETag",
+                  "value": "W/\"c2-PonQtCtc/mSeuO67Loi6TeY8HLM\""
+                },
+                {
+                  "key": "Date",
+                  "value": "Sun, 27 Sep 2026 08:51:59 GMT"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=5"
+                }
+              ],
+              "cookie": [],
+              "body": "{\r\n  \"error\": {\r\n    \"code\": \"VALIDATION_ERROR\",\r\n    \"message\": \"Указана ссылка на несуществующую связанную запись\",\r\n    \"requestId\": \"bbdda416-a826-4c6e-88d0-6dc04b281e1c\"\r\n  }\r\n}"
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [
@@ -2709,7 +4468,8 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": ""
+      "value": "http://localhost:3000/api",
+      "description": "Базовый адрес API без завершающего слэша."
     },
     {
       "key": "equipmentId",
@@ -2718,6 +4478,26 @@
     {
       "key": "requestId",
       "value": ""
+    },
+    {
+      "key": "siteId",
+      "value": "1fcf332e-f5bf-4272-8c4a-3279a51953fd",
+      "description": "Площадка «Ветропарк Северный» (код VN-01). Если база пересеяна, обновите: SELECT id FROM sites WHERE code = 'VN-01';"
+    },
+    {
+      "key": "technicianId",
+      "value": "9c48a077-6705-46ee-a418-08c33c601e2a",
+      "description": "Техник EMP-001 — в тестах бригады играет роль lead. Обновить: SELECT id FROM technicians WHERE employee_number = 'EMP-001';"
+    },
+    {
+      "key": "technicianId2",
+      "value": "609c13ab-24b3-44b4-bf7c-6ebc9d923395",
+      "description": "Техник EMP-002 — в тестах бригады играет роль member. Обновить: SELECT id FROM technicians WHERE employee_number = 'EMP-002';"
+    },
+    {
+      "key": "historyRequestId",
+      "value": "ac54176c-c3d4-4c29-8f30-8854d1ff2d0e",
+      "description": "Заявка из сидов со статусом done: в истории три перехода (new → in_progress → done)."
     }
   ]
 }

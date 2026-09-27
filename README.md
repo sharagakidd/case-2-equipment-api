@@ -40,16 +40,74 @@ cp .env.example .env        # Windows: copy .env.example .env
 `CORS_ORIGINS`, `WEATHER_API_URL` и `FORECAST_API_URL` обязательны: если переменная не задана,
 приложение падает на старте с сообщением `Не задана обязательная переменная окружения: <имя>`.
 
+### Подключение к базе
+
+Два набора переменных на одну и ту же базу: `POSTGRES_*` читает docker compose (создание базы
+в контейнере), `PG*` — приложение и sequelize-cli (`src/db/config.js`). Значения обязаны совпадать,
+иначе миграции уйдут не в ту базу, которая поднята в контейнере.
+
+| Переменная | Значение в `.env.example` | Кто читает | Назначение |
+|---|---|---|---|
+| `POSTGRES_DB` | `equipment_api` | docker compose | имя базы, создаваемой при первом старте контейнера |
+| `POSTGRES_USER` | `app` | docker compose | пользователь-владелец базы |
+| `POSTGRES_PASSWORD` | (пусто) | docker compose | пароль владельца; в локальном `.env` — `devpass` |
+| `PGHOST` | `localhost` | sequelize, sequelize-cli | хост базы; публикуется как `127.0.0.1:5432` |
+| `PGPORT` | `5432` | sequelize, sequelize-cli | порт базы |
+| `PGDATABASE` | `equipment_api` | sequelize, sequelize-cli | имя базы для подключения приложения |
+| `PGUSER` | `app` | sequelize, sequelize-cli | пользователь для подключения |
+| `PGPASSWORD` | (пусто) | sequelize, sequelize-cli | пароль для подключения; локально `devpass` |
+
+Порядок миграций и сидов задаётся именами файлов (`01-create-sites.js` … `07-create-request-assignees.js`),
+пути к папкам — в `.sequelizerc` (`migrations-path`, `seeders-path`, `models-path`, `config`).
+
+
 ## Запуск
 
+Порядок запуска: база → схема → данные → приложение.
+
 ```bash
-npm run dev     # nodemon: перезапуск при изменении файлов
-npm start       # обычный запуск
+docker compose up -d              # 1. PostgreSQL 18 в контейнере, порт 127.0.0.1:5432
+npx sequelize-cli db:migrate      # 2. применить миграции 01…07: таблицы, enum-типы, индексы
+npx sequelize-cli db:seed:all     # 3. справочники и демонстрационные данные
+npm run dev                       # 4. запустить API (nodemon: перезапуск при изменении файлов)
 ```
+
+`npm run dev` — разработка, `npm start` — обычный запуск. Шаги 1–3 выполняются один раз:
+повторный `db:seed:all` пропускает уже применённые сиды, их список хранится в служебной таблице
+`SequelizeData` (`seederStorage: 'sequelize'` в `src/db/config.js`). Перед запуском нужен `.env`
+(см. «Переменные окружения») — контейнер и приложение читают из него разные наборы переменных.
+
+Проверка готовности: `docker compose ps` (статус `healthy`) и `npx sequelize-cli db:migrate:status`.
 
 Сервер слушает `http://localhost:3000`, базовый путь API — `/api`. При остановке (Ctrl+C, SIGTERM)
 работает graceful shutdown: сервер перестаёт принимать соединения, ждёт завершения текущих
 и только затем выходит.
+
+### Откат миграций и сидов
+
+```bash
+npx sequelize-cli db:seed:undo:all       # убрать данные сидов (по служебной таблице)
+npx sequelize-cli db:migrate:undo        # откатить последнюю применённую миграцию (07)
+npx sequelize-cli db:migrate:undo:all     # откатить всю схему до пустой базы
+npx sequelize-cli db:migrate:undo --name <имя миграции без .js>   # откатить конкретную миграцию
+```
+
+Откат идёт в обратном порядке — от зависимых таблиц к справочникам, поэтому внешние ключи
+не мешают и данные не приходится чистить вручную:
+
+```text
+07 request_assignees → 06 request_status_history → 05 maintenance_requests →
+04 technicians → 03 equipment_passports → 02 equipment → 01 sites
+```
+
+В `down` каждой миграции, кроме удаления таблицы, явно выполняется `DROP TYPE IF EXISTS …`:
+`dropTable` не удаляет enum-типы PostgreSQL, и без этого повторный `db:migrate` упал бы на
+«type … already exists». Откат схемы удаляет данные безвозвратно — сначала сохраните дамп:
+
+```bash
+docker compose exec db pg_dump -U app equipment_api > dump.sql
+```
+
 
 ## Модель данных
 
@@ -61,6 +119,7 @@ npm start       # обычный запуск
 | `name` | string | 3–100 символов, обязательное |
 | `type` | string | `turbine` \| `inverter` \| `sensor` \| `substation` |
 | `serialNumber` | string | непустой, уникальный в пределах системы |
+| `siteId` | string \| null | UUID площадки; необязательное поле, `null` — оборудование вне площадки, несуществующий id даёт `422` |
 | `location` | object | `{ lat: -90…90, lon: -180…180 }` |
 | `status` | string | `operational` \| `maintenance` \| `fault` \| `decommissioned`; при создании по умолчанию `operational` |
 | `installedAt` | string | ISO-дата, не в будущем |
@@ -82,6 +141,212 @@ npm start       # обычный запуск
 запроса игнорируются (не приводят к ошибке). Идентификатор в пути (`:id`) проверяется как UUID —
 некорректный формат даёт `422`.
 
+## ER-диаграмма
+
+```text
+sites
+ └─ 1:N ─> equipment
+             ├─ 1:1 ─> equipment_passports
+             └─ 1:N ─> maintenance_requests
+                         ├─ 1:N ─> request_status_history
+                         └─ N:M ─> technicians        (через request_assignees)
+```
+
+Читается так: у площадки много единиц оборудования, у единицы оборудования не больше одного
+паспорта, заявки привязаны к единице оборудования, история статусов — к заявке, а исполнители
+связаны с заявками через таблицу `request_assignees`. Типы полей, ключи и правила удаления — ниже.
+
+## Схема данных
+
+Семь таблиц: четыре основные (`sites`, `equipment`, `technicians`, `maintenance_requests`) и три
+зависимые (`equipment_passports`, `request_status_history`, `request_assignees`). Все первичные
+ключи — UUID, значение генерирует база (`gen_random_uuid()`, встроена в PostgreSQL 13+).
+Имена колонок взяты из миграций (`snake_case`); исключение — метки времени `createdAt`/`updatedAt`
+(значения по умолчанию Sequelize, поэтому в кавычках они пишутся именно так).
+
+### sites — площадки
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK, `gen_random_uuid()` |
+| `name` | varchar(120) | NOT NULL |
+| `code` | varchar(32) | NOT NULL, UNIQUE |
+| `region` | varchar(120) | NOT NULL |
+| `lat`, `lon` | numeric(9,6) | NOT NULL |
+| `createdAt`, `updatedAt` | timestamptz | NOT NULL, по умолчанию `CURRENT_TIMESTAMP` |
+
+### equipment — оборудование
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK |
+| `site_id` | uuid | NULL, FK → `sites.id` |
+| `name` | varchar(100) | NOT NULL |
+| `type` | enum: `turbine`, `inverter`, `sensor`, `substation` | NOT NULL |
+| `serial_number` | varchar(64) | NOT NULL, UNIQUE |
+| `status` | enum: `operational`, `maintenance`, `fault`, `decommissioned` | NOT NULL, по умолчанию `operational` |
+| `installed_at` | timestamptz | NULL |
+| `lat`, `lon` | numeric(9,6) | NULL — координаты единицы могут отличаться от центра площадки |
+| `createdAt`, `updatedAt` | timestamptz | NOT NULL |
+
+Индексы: `equipment_site_id_idx` и `equipment_status_idx` — внешние ключи PostgreSQL сам не индексирует,
+а `status` часто используется в фильтрах API.
+
+### equipment_passports — паспорт оборудования
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK |
+| `equipment_id` | uuid | NOT NULL, UNIQUE, FK → `equipment.id` |
+| `manufacturer` | varchar(120) | NOT NULL |
+| `model` | varchar(120) | NOT NULL |
+| `rated_power` | numeric(10,2) | NULL |
+| `last_inspection_at` | timestamptz | NULL |
+| `createdAt`, `updatedAt` | timestamptz | NOT NULL |
+
+### technicians — техники
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK |
+| `full_name` | varchar(150) | NOT NULL |
+| `specialization` | varchar(120) | NOT NULL |
+| `employee_number` | varchar(32) | NOT NULL, UNIQUE |
+| `createdAt`, `updatedAt` | timestamptz | NOT NULL |
+
+### maintenance_requests — заявки на обслуживание
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK |
+| `equipment_id` | uuid | NOT NULL, FK → `equipment.id` |
+| `title` | varchar(120) | NOT NULL |
+| `description` | text | NULL |
+| `priority` | enum: `low`, `medium`, `high`, `critical` | NOT NULL, по умолчанию `medium` |
+| `status` | enum: `new`, `in_progress`, `done`, `rejected` | NOT NULL, по умолчанию `new` |
+| `planned_at` | timestamptz | NULL |
+| `author` | varchar(120) | NULL |
+| `createdAt`, `updatedAt` | timestamptz | NOT NULL |
+
+Индексы: `maintenance_requests_equipment_id_idx` и `maintenance_requests_status_idx`.
+
+### request_status_history — история смен статуса
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK |
+| `request_id` | uuid | NOT NULL, FK → `maintenance_requests.id` |
+| `old_status` | enum (те же четыре статуса) | NULL — первая запись создаётся вместе с заявкой, перехода ещё не было |
+| `new_status` | enum (те же четыре статуса) | NOT NULL |
+| `author` | varchar(120) | NULL |
+| `comment` | text | NULL |
+| `created_at` | timestamptz | NOT NULL, `CURRENT_TIMESTAMP` |
+
+Таблица только на добавление: есть `created_at` и нет `updatedAt`, поэтому записи истории
+не переписываются. Индекс `request_status_history_request_id_idx` ускоряет выборку истории
+и каскадное удаление.
+
+### request_assignees — исполнители заявки
+
+| Поле | Тип | Ограничения |
+|---|---|---|
+| `id` | uuid | PK |
+| `request_id` | uuid | NOT NULL, FK → `maintenance_requests.id` |
+| `technician_id` | uuid | NOT NULL, FK → `technicians.id` |
+| `role` | enum: `lead`, `member` | NOT NULL |
+| `hours` | numeric(6,2) | NULL |
+
+UNIQUE (`request_id`, `technician_id`) — техник не может быть назначен на заявку дважды;
+индекс `request_assignees_technician_id_idx` обслуживает обратный поиск «в каких заявках участвует
+техник». Меток времени у таблицы нет: это связка, а не самостоятельная сущность.
+
+Служебные таблицы Sequelize — `SequelizeMeta` (применённые миграции) и `SequelizeData` (применённые
+сиды) — в схему API не входят.
+
+## Связи между таблицами
+
+| Связь | Как задана | Что значит |
+|---|---|---|
+| `sites` → `equipment` | 1:N, `equipment.site_id` | на площадке много единиц оборудования; `site_id` допускает NULL, то есть единица может быть не привязана к площадке |
+| `equipment` → `equipment_passports` | 1:1, `equipment_passports.equipment_id` UNIQUE | паспорт либо один, либо его нет; двух паспортов у единицы быть не может |
+| `equipment` → `maintenance_requests` | 1:N, `maintenance_requests.equipment_id` | у единицы много заявок, каждая заявка относится ровно к одной единице |
+| `maintenance_requests` → `request_status_history` | 1:N, `request_status_history.request_id` | каждая смена статуса — отдельная строка, история только растёт |
+| `maintenance_requests` ↔ `technicians` | N:M через `request_assignees` | в заявке несколько исполнителей, техник участвует в нескольких заявках; атрибуты связи — `role` и `hours` |
+
+Правило «в заявке ровно один ведущий» в схеме не выражено: частичный уникальный индекс
+(`request_id` при `role = 'lead'`) допускал бы и ноль, и один; проверяет его сервисный слой
+и отвечает `422`. Техники — независимый справочник, он ни на кого не ссылается, ссылаются на него.
+
+## Нормализация и обоснование (3NF)
+
+**Первая нормальная форма.** Все колонки атомарны: списков и составных значений в одном поле нет.
+Несколько исполнителей заявки — это отдельные строки `request_assignees`, а не строка
+«Иванов, Петров». Статусы, приоритеты и типы хранятся enum-типами, а не свободным текстом.
+
+**Вторая нормальная форма.** У каждой таблицы суррогатный первичный ключ (`id` uuid), составных
+ключей нет, поэтому частичных зависимостей от части ключа быть не может. Уникальность пары
+«заявка + техник» вынесена в отдельное ограничение UNIQUE, а не в составной первичный ключ.
+
+**Третья нормальная форма.** Транзитивных зависимостей нет — каждый факт хранится в одном месте.
+
+- Справочники отделены от фактов: название, код и регион площадки лежат только в `sites`, а
+  `equipment` ссылается на них через `site_id`; ФИО и специализация техника — только в
+  `technicians`. Описания в дочерних таблицах не дублируются, обновление справочника — одна строка.
+- Атрибуты зависят только от ключа своей таблицы: `title`, `priority`, `status` — от заявки,
+  а `role` и `hours` — от пары «заявка + техник», потому что это атрибуты связи, а не заявки
+  или техника.
+- Вычисляемых и агрегированных значений в таблицах нет: число заявок, часы исполнителей и дата
+  последнего ремонта считаются запросом (`/api/reports/equipment-load`, сводка по площадке),
+  поэтому счётчики не могут разойтись с данными.
+- История статусов — отдельная таблица только на добавление, а не повторяющееся поле в заявке:
+  новая смена статуса не перезаписывает предыдущую.
+
+**Что нарушило бы третью форму и почему так не сделано.**
+
+- Хранить `siteName`/`region` в `equipment` — дублирование справочника: при переименовании площадки
+  пришлось бы править много строк.
+- Хранить в `equipment` число заявок или суммарные часы — кэш агрегатов, который надо
+  синхронизировать при каждом изменении заявки.
+- Хранить исполнителей строкой в заявке — нарушение первой формы и невозможность обратного поиска
+  «в каких заявках участвует техник».
+- Хранить историю статусов массивом JSON в заявке — не атомарно и не фильтруется по переходам.
+
+**Осознанные отступления.**
+
+- `equipment.lat`/`lon` дублируют координаты площадки: единица может стоять в стороне от её центра,
+  а может быть вообще не привязана к площадке (`site_id` допускает NULL).
+- `author` в заявке и в истории — свободный текст: справочника пользователей нет, аутентификации
+  в API нет, выносить имена в отдельную таблицу нечего.
+- Денормализация ради скорости не применялась: выборки читаются одним-двумя запросами с индексами
+  по внешним ключам и статусам. При росте данных отчёты переводятся на материализованное
+  представление без изменения схемы.
+
+## Правила удаления (ON DELETE)
+
+Правило задано у каждого внешнего ключа в миграциях. Логика выбора: дочерняя запись удаляется
+вместе с родителем только тогда, когда без родителя она бессмысленна.
+
+| Внешний ключ | ON DELETE | Почему так |
+|---|---|---|
+| `equipment.site_id` → `sites.id` | RESTRICT | площадку нельзя удалить, пока на ней числится оборудование, иначе единицы остались бы без места размещения |
+| `equipment_passports.equipment_id` → `equipment.id` | CASCADE | паспорт — часть единицы оборудования (связь 1:1), без неё он ничего не описывает |
+| `maintenance_requests.equipment_id` → `equipment.id` | RESTRICT | заявки — история работ: вместе с оборудованием нельзя терять, что и когда ремонтировали |
+| `request_status_history.request_id` → `maintenance_requests.id` | CASCADE | история смен статуса существует только внутри заявки |
+| `request_assignees.request_id` → `maintenance_requests.id` | CASCADE | назначение без заявки лишено смысла |
+| `request_assignees.technician_id` → `technicians.id` | RESTRICT | техника нельзя удалить, пока он назначен в заявки; справочник защищён от ссылок в пустоту |
+
+Защита двухуровневая. Приложение: `DELETE /api/equipment/:id` возвращает `409`, если у оборудования
+есть открытые заявки. База: если запрос обошёл сервис, PostgreSQL остановит удаление по RESTRICT
+или уберёт зависимые строки по CASCADE. Выбран RESTRICT, а не NO ACTION, потому что проверка
+срабатывает сразу, а не в конце транзакции.
+
+Коды ошибок целостности в ответах: ссылка на несуществующую запись при создании или обновлении
+(`23503`) — `422` с текстом про связанную запись; запрет удаления, когда на строку ссылаются
+(`23503` и `23001`, который PostgreSQL отдаёт для RESTRICT) — `409` «на неё ссылаются другие
+данные»; дубль по уникальному индексу — тоже `409`. Ни один из этих случаев не превращается в `500`:
+Sequelize не заворачивает `23001` в `ForeignKeyConstraintError`, поэтому репозиторий и обработчик
+ошибок распознают код драйвера отдельно.
+
 ## Эндпоинты
 
 | Метод | Путь | Назначение |
@@ -91,7 +356,7 @@ npm start       # обычный запуск
 | POST | `/api/equipment` | создание единицы оборудования |
 | GET | `/api/equipment/:id` | карточка оборудования |
 | PATCH | `/api/equipment/:id` | частичное обновление |
-| DELETE | `/api/equipment/:id` | удаление (запрещено при наличии открытых заявок) |
+| DELETE | `/api/equipment/:id` | удаление; `409`, если по оборудованию есть заявки (открытые проверяет сервис, остальные — внешний ключ) |
 | GET | `/api/equipment/:id/requests` | заявки по конкретной единице оборудования |
 | GET | `/api/equipment/:id/weather` | прогноз по координатам объекта и пригодность окна для работ |
 | GET | `/api/requests` | список заявок: фильтры, сортировка, пагинация |
@@ -163,9 +428,9 @@ in_progress → rejected
 }
 ```
 
-Оба маршрута возвращают карточку заявки с обновлённым списком `assignees`.
-`DELETE /api/requests/:id/assignees/:userId` снимает одного исполнителя (в `:userId` —
-идентификатор техника) и отвечает `404`, если такого исполнителя у заявки нет.
+Оба маршрута отвечают без тела заявки: `POST` возвращает `201`, адрес бригады в заголовке
+`Location` и карточку заявки с новым составом `assignees`, `DELETE` — `204` без тела
+(в `:userId` — идентификатор техника; `404`, если такого исполнителя у заявки нет).
 
 ## Сводка по площадке
 
@@ -185,10 +450,33 @@ in_progress → rejected
 
 ## Отчёт по загрузке оборудования
 
-`GET /api/reports/equipment-load` — аналитика одним запросом к базе (raw SQL): счётчики заявок
-и часы исполнителей считаются подзапросами, поэтому строки не размножаются. Параметр `siteId`
-ограничивает выборку одной площадкой; неизвестный `siteId` даёт пустой список, а не `404`.
-Ответ — `{ "data": [ … ] }` без пагинации, самая нагруженная техника идёт первой.
+`GET /api/reports/equipment-load` — аналитика по каждой единице оборудования одним запросом к базе
+(raw SQL в `src/repositories/ReportRepository.js`): счётчики заявок и часы исполнителей считаются
+подзапросами, поэтому join не размножает строки. Пагинации нет: ответ — `{ "data": [ … ] }`,
+самая нагруженная техника идёт первой.
+
+| Параметр | Тип | Обязательный | Поведение |
+|---|---|---|---|
+| `siteId` | UUID | нет | ограничивает выборку одной площадкой |
+
+Примеры параметров:
+
+```bash
+# все площадки
+curl 'http://localhost:3000/api/reports/equipment-load'
+
+# только оборудование площадки
+curl 'http://localhost:3000/api/reports/equipment-load?siteId=1fcf1c2e-0d4e-4b9a-9c1e-2f3a4b5c6d7e'
+
+# невалидный UUID — 422, неизвестный UUID — 200 и пустой "data"
+curl -i 'http://localhost:3000/api/reports/equipment-load?siteId=not-a-uuid'
+```
+
+Без параметра считаются все площадки; неизвестный, но валидный `siteId` не ошибка — вернётся
+пустой список (площадка без оборудования допустима); невалидный UUID отсекает валидация с `422`.
+Фильтр по площадке применяется к оборудованию, у которого площадка не указана (`site_id IS NULL`),
+такие строки в выборку с `siteId` не попадают.
+
 
 ```json
 {
@@ -211,6 +499,11 @@ in_progress → rejected
   ]
 }
 ```
+
+В `src/repositories/ReportRepository.js` отчёт собран на подзапросах, а в
+`src/repositories/reportsRepository.js` лежит вариант того же отчёта одним запросом с параметрами
+`from`, `to` и `minRequests` (`GROUP BY … HAVING`, значения уходят через `bind`); к маршруту этот
+вариант пока не подключён.
 
 ## Формат ошибок
 
@@ -348,6 +641,31 @@ curl -X POST http://localhost:3000/api/requests -H 'Content-Type: application/js
                  "requestId": "cbf8f6b3-0488-4b6d-b2ca-0e36f16d0da5" } }
 ```
 
+## Коллекция Postman
+
+Готовая коллекция лежит в `docs/postman/equipment-api.postman_collection.json` (`Equipment API`,
+схема v2.1.0). Переменная `baseUrl` уже указывает на `http://localhost:3000/api`, остальные значения
+заданы из сидов или заполняются ответами предыдущих запросов.
+
+| Папка | Что проверяет |
+|---|---|
+| `Health` | доступность сервиса |
+| `Equipment` | CRUD, список с фильтрами, заявки и прогноз по единице оборудования |
+| `Requests` | создание, список, правка, смена статуса, удаление |
+| `Negative` | `404`, `422`, `409`, `429` на некорректных данных |
+| `Assignees` | назначение бригады → `201` и заголовок `Location`, два `lead` и вариант без `lead` → `422`, снятие исполнителя → `204` |
+| `History` | история смены статуса заявки → `200` |
+| `Sites` | сводка по площадке → `200` |
+| `Reports` | отчёт по загрузке оборудования с параметром `siteId` и без него → `200` |
+| `Negative Sequelize` | дубль серийного номера → `409`, ссылка на несуществующую площадку → `422` |
+
+Порядок прогона: `Equipment → Create equipment` заполняет переменную `equipmentId`,
+`Requests → Create request` — `requestId`; от них зависят тесты бригады и внешнего ключа.
+Каждый элемент содержит сохранённый пример ответа и скрипты `pm.test` с проверкой статуса и тела.
+Переменные `siteId`, `technicianId`, `technicianId2`, `historyRequestId` — данные из сидов:
+после повторного засева идентификаторы изменятся, SQL для обновления указан в описании каждой
+переменной.
+
 ## Безопасность
 
 - **CORS** — только origin'ы из `CORS_ORIGINS` (никакого `*`), запросы с чужим origin отклоняются,
@@ -387,9 +705,9 @@ curl -X POST http://localhost:3000/api/requests -H 'Content-Type: application/js
 ```text
 case-2-equipment-api/
 ├── .env.example              # пример переменных окружения
-├── .gitignore
+├── .sequelizerc              # пути к конфигу, миграциям, сидам и моделям
+├── compose.yaml              # PostgreSQL 18 для локальной разработки
 ├── package.json
-├── package-lock.json
 ├── README.md
 └── src/
     ├── app.js                # сборка приложения: middleware → роутер → обработчики ошибок
@@ -398,11 +716,19 @@ case-2-equipment-api/
     │   └── index.js          # чтение и проверка переменных окружения
     ├── controllers/          # HTTP-слой: разбор req.valid и формирование ответа
     │   ├── equipmentController.js
-    │   └── requestController.js
+    │   ├── reportController.js
+    │   ├── requestController.js
+    │   └── siteController.js
+    ├── db/                   # PostgreSQL: подключение, схема, данные
+    │   ├── config.js         # конфиг для sequelize-cli и приложения
+    │   ├── index.js          # экземпляр Sequelize из переменных PG*
+    │   ├── migrations/       # 01-create-sites … 07-create-request-assignees
+    │   ├── models/           # модели Sequelize и ассоциации (index.js)
+    │   └── seeders/          # 01-sites … 07-history
     ├── errors/               # собственные типы ошибок
     │   ├── AppError.js
-    │   ├── NotFoundError.js
     │   ├── ConflictError.js
+    │   ├── NotFoundError.js
     │   └── ValidationError.js
     ├── lib/                  # инфраструктура
     │   ├── logger.js         # pino (+ pino-pretty в development)
@@ -412,17 +738,25 @@ case-2-equipment-api/
     ├── repositories/         # доступ к данным
     │   ├── BaseRepository.js
     │   ├── EquipmentRepository.js
+    │   ├── ReportRepository.js      # отчёт по загрузке на подзапросах
+    │   ├── reportsRepository.js     # вариант того же отчёта с bind-параметрами
     │   ├── RequestRepository.js
+    │   ├── SiteRepository.js
+    │   ├── TechnicianRepository.js
     │   └── index.js          # синглтоны репозиториев
-    ├── routes/               # index, health, equipment, requests
+    ├── routes/               # index, health, equipment, requests, sites, reports
     ├── services/             # бизнес-логика
     │   ├── equipmentService.js
+    │   ├── reportService.js
     │   ├── requestService.js
+    │   ├── siteService.js
     │   └── weatherService.js
     ├── utils/
     │   └── response.js       # sendList / sendOne — конверты ответов
     └── validators/           # zod-схемы body, query и params
         ├── equipmentSchemas.js
+        ├── querySchemas.js
+        ├── reportSchemas.js
         ├── requestSchemas.js
-        └── querySchemas.js
+        └── siteSchemas.js
 ```
