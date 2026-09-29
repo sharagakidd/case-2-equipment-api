@@ -6,9 +6,11 @@ import cookieParser from 'cookie-parser';
 import { config } from './config/index.js';
 import { httpLogger } from './lib/http-logger.js';
 import { contextMiddleware } from './lib/context.js';
+import { httpMetricsMiddleware } from './lib/metrics.js';
 import { notFound } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import router from './routes/index.js';
+import metricsRouter from './routes/metrics.js';
 
 // Сборка приложения: сначала логгер и контекст запроса, затем защита, роутер
 // и единый обработчик ошибок — любой сбой отвечает в формате { error: {...} }.
@@ -20,6 +22,8 @@ app.set('trust proxy', 1);
 
 app.use(httpLogger);
 app.use(contextMiddleware);
+// Метрики собираем до лимита частоты — тогда 429 тоже попадают в счётчики.
+app.use(httpMetricsMiddleware);
 // Безопасность: защитные заголовки, CORS по списку из окружения и лимит частоты.
 app.use(helmet());
 app.use(cors({ origin: config.corsOrigins, credentials: true }));
@@ -45,6 +49,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: '100kb' }));
 app.use('/api', router);
+app.use('/metrics', metricsRouter);
 app.use(notFound);
 app.use(errorHandler);
 
