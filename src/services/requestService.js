@@ -1,7 +1,13 @@
 import { sequelize } from '../db/index.js';
-import { requestRepository, equipmentRepository, technicianRepository } from '../repositories/index.js';
+import {
+  requestRepository,
+  equipmentRepository,
+  technicianRepository,
+  userRepository,
+} from '../repositories/index.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ConflictError } from '../errors/ConflictError.js';
+import { ForbiddenError } from '../errors/ForbiddenError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 
 // Допустимые переходы статуса: done и rejected — конечные.
@@ -42,7 +48,8 @@ export const requestService = {
   },
 
   // Смена статуса и история — одной транзакцией; строку заявки блокируем от гонок.
-  async changeStatus(id, newStatus, author) {
+  // Администратор меняет статус любой заявки, специалист — только той, куда назначен.
+  async changeStatus(id, newStatus, { user } = {}) {
     return sequelize.transaction(async (transaction) => {
       const request = await requestRepository.findRowForUpdate(id, { transaction });
       if (!request) throw new NotFoundError('Заявка');
@@ -56,9 +63,23 @@ export const requestService = {
         throw new ConflictError('Нельзя взять заявку в работу без назначенных исполнителей');
       }
 
+      // Кто меняет: администратор — любую заявку, специалист — только свою.
+      // Связь аккаунта со справочником техников лежит в users.technician_id.
+      const actor = user ? await userRepository.findById(user.userId, { transaction }) : null;
+      if (user?.role !== 'admin') {
+        const assigned = actor?.technicianId
+          ? await requestRepository.isAssignee(id, actor.technicianId, { transaction })
+          : false;
+
+        if (!assigned) {
+          throw new ForbiddenError('Менять статус можно только у заявки, в которую вы назначены');
+        }
+      }
+
       await requestRepository.update(id, { status: newStatus }, { transaction });
+      // Автор перехода — вошедший пользователь, а не произвольная строка из тела.
       await requestRepository.addStatusHistory(
-        { requestId: id, oldStatus: request.status, newStatus, author },
+        { requestId: id, oldStatus: request.status, newStatus, author: actor?.email ?? null },
         { transaction },
       );
 

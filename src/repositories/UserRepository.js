@@ -11,6 +11,7 @@ export function toUser(instance) {
     id: row.id,
     email: row.email,
     role: row.role,
+    technicianId: row.technicianId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
