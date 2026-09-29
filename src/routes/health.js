@@ -1,7 +1,7 @@
 import { Router } from 'express';
+import { sequelize } from '../db/index.js';
 
-// Health-проверка: только «процесс жив», без обращений к внешним API.
-// Смонтирован в app.js как app.use('/api', router), поэтому итоговый путь — /api/health.
+// Проверки живости: путь получается /api/health (роутер смонтирован в app.js под /api).
 const router = Router();
 
 const startedAt = Date.now();
@@ -15,4 +15,20 @@ router.get('/', (req, res) => {
   });
 });
 
+// Liveness: процесс жив, базу не трогаем — такой проверке верит healthcheck в compose.
+router.get('/live', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Readiness: приложение готово работать, только если доступна база.
+router.get('/ready', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ status: 'ok', database: 'up' });
+  } catch {
+    res.status(503).json({ status: 'degraded', database: 'down' });
+  }
+});
+
 export default router;
+
