@@ -59,6 +59,21 @@ services:
       retries: 5
       start_period: 10s
 
+  db_test:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: equipment_api_test
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '127.0.0.1:5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d equipment_api_test']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
