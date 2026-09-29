@@ -2,6 +2,9 @@ import { UniqueConstraintError, ForeignKeyConstraintError } from 'sequelize';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ConflictError } from '../errors/ConflictError.js';
 import { ValidationError } from '../errors/ValidationError.js';
+import { UnauthorizedError } from '../errors/UnauthorizedError.js';
+import { ForbiddenError } from '../errors/ForbiddenError.js';
+import { InvalidCredentialsError } from '../errors/InvalidCredentialsError.js';
 import { isReferenceViolation } from '../repositories/BaseRepository.js';
 import logger from '../lib/logger.js';
 
@@ -11,6 +14,9 @@ const ERROR_CODES = [
   [NotFoundError, 'NOT_FOUND'],
   [ConflictError, 'CONFLICT'],
   [ValidationError, 'VALIDATION_ERROR'],
+  [UnauthorizedError, 'UNAUTHORIZED'],
+  [ForbiddenError, 'FORBIDDEN'],
+  [InvalidCredentialsError, 'INVALID_CREDENTIALS'],
 ];
 
 // Ошибки приходят из базы, а не нашими классами, поэтому статус и текст задаём здесь.
@@ -30,9 +36,8 @@ const DB_ERRORS = [
   ],
 ];
 
-// Запрет удаления и вставки из-за связанных данных: код драйвера 23001 (ON DELETE RESTRICT)
-// Sequelize не превращает в ForeignKeyConstraintError, поэтому распознаём его отдельно.
-// Для DELETE это конфликт, для записи — ошибка переданной ссылки.
+// Код 23001 (запрет удаления из-за связанных данных) Sequelize не распознаёт,
+// поэтому обрабатываем его отдельно: для DELETE это 409, для записи — 422.
 const REFERENCE_ERRORS = {
   DELETE: {
     status: 409,
@@ -71,13 +76,16 @@ export function errorHandler(err, req, res, next) {
   const log = req.log ?? logger;
   log[status >= 500 ? 'error' : 'warn']({ err, status }, 'request failed');
 
-  const body = {
-    error: {
-      code: dbError?.code ?? resolveErrorCode(err),
-      message: dbError?.message ?? (status < 500 ? err.message : 'Внутренняя ошибка сервера'),
-      requestId: req.id,
-    },
+  const error = {
+    code: dbError?.code ?? resolveErrorCode(err),
+    message: dbError?.message ?? (status < 500 ? err.message : 'Внутренняя ошибка сервера'),
   };
+
+  // У ошибки входа requestId не отдаём: тела ответов на неверный пароль
+  // и на несуществующего пользователя должны совпадать.
+  if (!err.hideRequestId) error.requestId = req.id;
+
+  const body = { error };
 
   if (err.details) {
     body.error.details = err.details;
