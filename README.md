@@ -700,13 +700,95 @@ curl -X POST http://localhost:3000/api/requests -H 'Content-Type: application/js
 Если внешний API недоступен или превышен таймаут, сервис не падает: возвращается `200`
 с `suitable: null`, `reason` и `forecast.available: false` — клиент сам решает, показывать ли прогноз.
 
+## Мониторинг
+
+Метрики приложения собирает Prometheus, отображает Grafana; оба сервиса поднимаются вместе
+со стеком через `docker compose up -d` (см. `compose.yaml`).
+
+| Сервис | Адрес | Назначение |
+|---|---|---|
+| Prometheus | http://localhost:9090 | скрейпит `app:3000/metrics` каждые 15 с (`deploy/prometheus/prometheus.yml`); состояние целей — http://localhost:9090/targets |
+| Grafana | http://localhost:3001 | логин `admin` / `admin`, дашборд «Equipment API» |
+
+### Метрики
+
+Приложение отдаёт метрики по пути `GET /metrics` — вне префикса `/api`, в текстовом формате
+Prometheus. Наружу этот путь не публикуется: Prometheus обращается к нему по внутренней сети
+compose, через nginx он не проксируется.
+
+| Метрика | Тип | Метки | Что показывает |
+|---|---|---|---|
+| `http_requests_total` | counter | `method`, `route`, `status_code` | все запросы по маршрутам и статусам |
+| `http_request_duration_seconds` | histogram | `method`, `route` | длительность запросов (p50/p95/p99) |
+| `http_errors_total` | counter | `method`, `route`, `status_code` | ответы 4xx и 5xx |
+| `maintenance_requests` | gauge | `status`, `priority` | заявки в БД по статусам и приоритетам |
+| `maintenance_request_close_time_seconds` | gauge | — | среднее время закрытия заявки |
+| `equipment_open_requests` | gauge | `equipment` | открытые заявки по единицам оборудования |
+| `up` | gauge | `job` | доступность цели скрейпа |
+
+Метка `route` — шаблон маршрута (`/api/equipment/:id`), поэтому число серий не растёт с числом
+записей и идентификаторов. Запросы, отбитые до выбора маршрута (нет токена, невалидное тело),
+подписываются префиксом ресурса (`/api/equipment`, `/api/auth`), несуществующие пути — `unmatched`.
+
+Бизнес-метрики обновляются раз в 15 секунд из PostgreSQL (`src/lib/business-metrics.js`), время
+закрытия считается по истории статусов (`request_status_history`), а не по `updatedAt`: правка
+карточки заявки тоже меняет `updatedAt`, а запись о переходе в `done` остаётся одна.
+
+### Дашборд
+
+`deploy/grafana/provisioning/dashboards/equipment-api.json` — 9 панелей: технические (rate
+запросов, доли 4xx и 5xx, p95 времени ответа, `up`) и прикладные (заявки по статусам, заявки
+по приоритетам, среднее время закрытия, нагрузка на оборудование). Дашборд провижинится из
+файла, поэтому правки в интерфейсе не сохраняются: меняйте JSON и перезапускайте Grafana.
+
+### Алерт «Доля 5xx выше 5%»
+
+Правило описано в `deploy/grafana/provisioning/alerting/5xx-share.yml`. Условие — PromQL
+`sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) or vector(0)`
+с порогом `> 0.05` (5%) и выдержкой `for: 5m`: состояние `Firing` наступает, если доля держится
+выше порога 5 минут подряд, проверка идёт раз в минуту. `or vector(0)` нужен, чтобы при полном
+отсутствии 5xx условие считалось нулём, а не «нет данных».
+
+Порядок действий:
+
+1. Посмотреть состояние: Grafana → **Alerting → Alert rules** → группа `equipment-api`, правило
+   «Доля 5xx выше 5%». Там видны текущее состояние (`Normal` / `Pending` / `Firing`) и история
+   переходов.
+2. Проверить через API: `curl -u admin:admin http://localhost:3001/api/v1/provisioning/alert-rules`
+   — список правил из файла; `curl -u admin:admin http://localhost:3001/api/prometheus/grafana/api/v1/rules`
+   — текущее состояние (`state`, `health`, время последней проверки).
+3. Убедиться, что алерт живой: панель «Доля 5xx» на дашборде → спровоцировать пятисотые
+   (`docker compose stop db` и несколько запросов к API) → через 5 минут правило перейдёт в
+   `Firing`; после `docker compose start db` и восстановления нормального трафика вернётся
+   в `Normal`.
+4. Изменить порог или выдержку: правки в `5xx-share.yml` (`params: [0.05]` — порог, `for: 5m` —
+   выдержка), затем `docker compose restart grafana`.
+5. Настроить уведомления: **Alerting → Contact points** — добавить получателя (почта, Telegram,
+   webhook) и указать его в **Notification policies**. Это тоже можно описать файлом в
+   `deploy/grafana/provisioning/alerting/`, если нужен полностью декларативный стек.
+
+### Проверка стека
+
+```bash
+docker compose up -d --build         # собрать app и поднять nginx, app, db, prometheus, grafana
+docker compose ps                    # сервисы healthy; наружу открыты 80, 443, 9090, 3001
+curl http://localhost:9090/targets   # цель app:3000/metrics в состоянии UP
+```
+
+Дашборд и правило доступны сразу после старта: провижининг читает файлы из
+`deploy/grafana/provisioning/` и `deploy/prometheus/prometheus.yml` при запуске контейнеров.
+
 ## Структура проекта
 
 ```text
 case-2-equipment-api/
 ├── .env.example              # пример переменных окружения
 ├── .sequelizerc              # пути к конфигу, миграциям, сидам и моделям
-├── compose.yaml              # PostgreSQL 18 для локальной разработки
+├── compose.yaml              # стек: nginx, app, db, prometheus, grafana
+├── deploy/                   # конфиги стека
+│   ├── nginx/conf.d/app.conf # обратный прокси на app:3000
+│   ├── prometheus/prometheus.yml  # скрейп app:3000/metrics каждые 15 с
+│   └── grafana/provisioning/      # datasource, дашборд и правило алерта
 ├── package.json
 ├── README.md
 └── src/
@@ -733,7 +815,9 @@ case-2-equipment-api/
     ├── lib/                  # инфраструктура
     │   ├── logger.js         # pino (+ pino-pretty в development)
     │   ├── http-logger.js    # pino-http: requestId, уровень по статусу
-    │   └── context.js        # AsyncLocalStorage: reqId и логгер запроса
+    │   ├── context.js        # AsyncLocalStorage: reqId и логгер запроса
+    │   ├── metrics.js        # метрики Prometheus и сбор HTTP-статистики
+    │   └── business-metrics.js  # прикладные метрики из БД: заявки, загрузка
     ├── middlewares/          # validate, notFound, errorHandler
     ├── repositories/         # доступ к данным
     │   ├── BaseRepository.js
@@ -744,7 +828,7 @@ case-2-equipment-api/
     │   ├── SiteRepository.js
     │   ├── TechnicianRepository.js
     │   └── index.js          # синглтоны репозиториев
-    ├── routes/               # index, health, equipment, requests, sites, reports
+    ├── routes/               # index, health, equipment, requests, sites, reports, metrics
     ├── services/             # бизнес-логика
     │   ├── equipmentService.js
     │   ├── reportService.js
