@@ -13,7 +13,7 @@ function extractToken(header) {
 
 // Проверяем access-токен и кладём в req.user его идентификатор и роль.
 // Нет токена — 401, токен не прошёл проверку — 403.
-export function authenticate(req, res, next) {
+export function authMiddleware(req, res, next) {
   const token = extractToken(req.headers.authorization);
 
   if (!token) {
