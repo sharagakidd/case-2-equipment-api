@@ -105,6 +105,15 @@ export class RequestRepository extends BaseRepository {
     return RequestAssignee.count({ where: { requestId }, transaction });
   }
 
+  // Назначен ли конкретный техник на заявку — проверка права на смену статуса.
+  async isAssignee(requestId, technicianId, { transaction } = {}) {
+    if (!requestId || !technicianId) return false;
+
+    const total = await RequestAssignee.count({ where: { requestId, technicianId }, transaction });
+
+    return total > 0;
+  }
+
   async addStatusHistory({ requestId, oldStatus, newStatus, author, comment }, { transaction } = {}) {
     const row = await RequestStatusHistory.create(
       { requestId, oldStatus, newStatus, author, comment },

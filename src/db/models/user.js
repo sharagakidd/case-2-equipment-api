@@ -24,6 +24,15 @@ User.init(
     },
     // Хеш пароля наружу не отдаём: поле отбрасывает маппер на слое репозитория.
     passwordHash: { type: DataTypes.STRING(255), field: 'password_hash', allowNull: false },
+    // Связь со справочником техников: по ней проверяем, что специалист меняет
+    // статус только своих заявок (миграция 10).
+    technicianId: {
+      type: DataTypes.UUID,
+      field: 'technician_id',
+      allowNull: true,
+      references: { model: 'technicians', key: 'id' },
+      onDelete: 'SET NULL',
+    },
     role: {
       type: DataTypes.ENUM(...USER_ROLES),
       allowNull: false,

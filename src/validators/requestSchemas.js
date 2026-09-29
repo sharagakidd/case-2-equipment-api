@@ -17,7 +17,7 @@ export const createRequestSchema = z.object({
 
 export const updateRequestSchema = z.object(requestFields).partial().omit({ equipmentId: true });
 
-// Схема смены статуса: через обычный PATCH статус не подменить, author необязателен.
+// Смена статуса: через обычный PATCH статус не подменить, автора берём из токена.
 export const statusChangeSchema = z.object({
   status: z.enum(['new', 'in_progress', 'done', 'rejected']),
   author: z.string().min(1).max(120).optional(),

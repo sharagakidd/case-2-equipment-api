@@ -26,10 +26,10 @@ export const requestController = {
     sendOne(res, item);
   },
 
-  // author из тела уходит в историю смены статуса.
+  // Смену статуса выполняет вошедший пользователь: по нему сервис проверяет право
+  // и записывает автора перехода в историю.
   changeStatus: async (req, res) => {
-    const { status, author } = req.valid.body;
-    const item = await requestService.changeStatus(req.params.id, status, author);
+    const item = await requestService.changeStatus(req.params.id, req.valid.body.status, { user: req.user });
     sendOne(res, item);
   },
 
