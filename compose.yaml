@@ -1,21 +1,58 @@
+# Стек целиком: наружу смотрит только nginx, приложение портов не публикует.
 services:
+  nginx:
+    image: nginx:1.30-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      # конфиги прокси лежат в репозитории
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      app:
+        condition: service_healthy
+
+  app:
+    build:
+      # код и Dockerfile лежат в корне репозитория
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # внутри сети база доступна по имени сервиса, а не по localhost
+      PGHOST: db
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health/live').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   db:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      # значения подставляются из .env (compose читает его автоматически)
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
+      # только для миграций и сидов с хоста; наружу не открыт
       - '127.0.0.1:5432:5432'
     volumes:
-      # в образе postgres:18 данные лежат в /var/lib/postgresql (без /data)
       - pgdata:/var/lib/postgresql
-      # сюда кладутся .sql/.sh для первичной инициализации (пока пусто)
-      - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      # $${...} раскрывается внутри контейнера его же переменными окружения
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
@@ -24,3 +61,4 @@ services:
 
 volumes:
   pgdata:
+

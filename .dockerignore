@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+docs
+README.md
+compose.yaml
+tmp-*.mjs
+data
+db/init
