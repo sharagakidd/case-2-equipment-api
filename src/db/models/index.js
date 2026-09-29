@@ -6,6 +6,7 @@ import { Technician } from './technician.js';
 import { MaintenanceRequest } from './maintenanceRequest.js';
 import { RequestStatusHistory } from './requestStatusHistory.js';
 import { RequestAssignee } from './requestAssignee.js';
+import { User } from './user.js';
 
 // Ассоциации навешиваются при импорте модуля — работать с моделями нужно через него.
 // foreignKey указывается именем атрибута (siteId); колонка БД задана в модели через field.
@@ -44,6 +45,7 @@ const models = {
   MaintenanceRequest,
   RequestStatusHistory,
   RequestAssignee,
+  User,
 };
 
 export {
@@ -54,6 +56,7 @@ export {
   MaintenanceRequest,
   RequestStatusHistory,
   RequestAssignee,
+  User,
   sequelize,
   models,
 };

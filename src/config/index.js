@@ -1,10 +1,14 @@
 import 'dotenv/config';
 
-// Единая точка чтения переменных окружения.
-// dotenv/config выше подхватывает .env в момент импорта модуля.
-// Без этих переменных приложение стартует в заведомо нерабочем состоянии,
-// поэтому падаем сразу на импорте, а не в момент первого запроса.
-const REQUIRED_ENV_VARS = ['CORS_ORIGINS', 'WEATHER_API_URL', 'FORECAST_API_URL'];
+// Единая точка чтения переменных окружения (dotenv подхватывает .env при импорте).
+// Без обязательных переменных падаем сразу на старте, а не в первом запросе.
+const REQUIRED_ENV_VARS = [
+  'CORS_ORIGINS',
+  'WEATHER_API_URL',
+  'FORECAST_API_URL',
+  'JWT_ACCESS_SECRET',
+  'JWT_REFRESH_SECRET',
+];
 
 for (const name of REQUIRED_ENV_VARS) {
   if (!process.env[name]) {
@@ -35,6 +39,15 @@ export const config = {
   // Порог, ниже которого технику считаем пригодной к работе.
   maxWindSpeed: Number(process.env.MAX_WIND_SPEED) || 10,
   maxPrecipitation: Number(process.env.MAX_PRECIPITATION) || 0,
+
+  // Отдельный лимит на вход: 5 попыток за 15 минут с одного адреса.
+  // Общий лимит приложения (100 запросов в минуту) продолжает действовать для остальных.
+  auth: {
+    loginRateLimit: {
+      windowMs: Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+      max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 5,
+    },
+  },
 
   isProduction: nodeEnv === 'production',
 };
