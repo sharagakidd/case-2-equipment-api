@@ -89,6 +89,11 @@ services:
   grafana:
     image: grafana/grafana:latest
     restart: unless-stopped
+    environment:
+      # Учётная запись администратора Grafana: значения из .env,
+      # по умолчанию — admin/admin (только для локального запуска).
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
     ports:
       - '3001:3000'
     volumes:
