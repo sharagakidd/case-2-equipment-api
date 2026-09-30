@@ -6,7 +6,122 @@
     "_exporter_id": "58192730",
     "_collection_link": "https://go.postman.co/collection/58192730-d3041fd6-a47f-481c-b652-c0e935248eee?source=collection_link"
   },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
   "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (viewer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Роль по умолчанию viewer\", () => pm.expect(pm.response.json().data.role).to.eql(\"viewer\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Создаёт пользователя с ролью viewer: роль из тела игнорируется, повышать права может только админ. Повторный запуск с той же почтой вернёт 409 — регистрация одноразовая."
+          }
+        },
+        {
+          "name": "Login (сохраняет accessToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус 200\", () => pm.response.to.have.status(200));",
+                  "const auth = pm.response.json().data;",
+                  "pm.test(\"accessToken в теле\", () => pm.expect(auth.accessToken).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"accessToken\", auth.accessToken);",
+                  "pm.collectionVariables.set(\"currentRole\", auth.user.role);",
+                  "pm.test(\"Роль из токена\", () => pm.expect(auth.user.role).to.be.oneOf([\"viewer\", \"technician\", \"admin\"]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Проверяет учётные данные: access-токен приходит в теле (data.accessToken) и сохраняется в переменную accessToken, refresh-токен — в HttpOnly-cookie (её держит Postman). Все остальные запросы коллекции подхватывают токен через Authorization: Bearer {{accessToken}}."
+          }
+        },
+        {
+          "name": "Refresh (читает cookie)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code === 200;",
+                  "const noCookie = pm.response.code === 401;",
+                  "pm.test(\"200 с обновлённым токеном или 401 без cookie\", () => pm.expect(ok || noCookie).to.be.true);",
+                  "if (ok) {",
+                  "  const auth = pm.response.json().data;",
+                  "  pm.collectionVariables.set(\"accessToken\", auth.accessToken);",
+                  "  pm.test(\"Выдан новый accessToken\", () => pm.expect(auth.accessToken).to.be.a(\"string\"));",
+                  "} else {",
+                  "  console.log(\"Refresh-cookie выставлена с флагом Secure, поэтому по http она не отправляется: запускайте через https://localhost либо проверяйте refresh руками в браузере/тестах.\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Тело не нужно: refresh-токен читается из HttpOnly-cookie, которую поставил login. Ответ — новая пара токенов (ротация: старый refresh больше не действует)."
+          }
+        }
+      ]
+    },
     {
       "name": "Health",
       "item": [
@@ -27,6 +142,7 @@
             }
           ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
             "url": {
@@ -4817,6 +4933,26 @@
       "key": "historyRequestId",
       "value": "",
       "description": "Заявка из сидов со статусом done: в истории есть цепочка переходов. Значение подставляет папка Setup."
+    },
+    {
+      "key": "testEmail",
+      "value": "viewer@test.local",
+      "description": "Почта для папки Auth: по ней выполняются Register и Login."
+    },
+    {
+      "key": "testPassword",
+      "value": "Passw0rd!2345",
+      "description": "Пароль для Register и Login: минимум 8 символов, буквы разного регистра, цифра и спецсимвол."
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "description": "Заполняется скриптом запроса Auth → Login. На уровне коллекции настроен Authorization: Bearer {{accessToken}}, поэтому остальные запросы подхватывают токен автоматически."
+    },
+    {
+      "key": "currentRole",
+      "value": "",
+      "description": "Роль вошедшего пользователя (после регистрации — viewer). Изменяющие запросы требуют technician или admin: поднимите роль в базе — UPDATE users SET role = 'admin' WHERE email = '{{testEmail}}'; — и выполните Login заново."
     }
   ]
 }
