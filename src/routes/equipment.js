@@ -161,7 +161,6 @@ router.get('/:id/requests', validate({ query: requestListQuery }), requestContro
  *         $ref: '#/components/responses/NotFound'
  */
 router.get('/:id/weather', equipmentController.getWeather);
-router.get('/:id/weather', equipmentController.getWeather);
 /**
  * @openapi
  * /api/equipment/{id}:
@@ -274,10 +273,6 @@ router.patch('/:id', requireRole('admin'), validate({ params: idParamSchema, bod
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete('/:id', requireRole('admin'), validate({ params: idParamSchema }), equipmentController.remove);
-
-router.post('/', requireRole('admin'), validate({ body: createEquipmentSchema }), equipmentController.create);
-router.patch('/:id', requireRole('admin'), validate({ params: idParamSchema, body: updateEquipmentSchema }), equipmentController.update);
 router.delete('/:id', requireRole('admin'), validate({ params: idParamSchema }), equipmentController.remove);
 
 export default router;
