@@ -11,6 +11,8 @@ import { notFound } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import router from './routes/index.js';
 import metricsRouter from './routes/metrics.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger.js';
 
 // Сборка приложения: сначала логгер и контекст запроса, затем защита, роутер
 // и единый обработчик ошибок — любой сбой отвечает в формате { error: {...} }.
@@ -50,6 +52,9 @@ app.use(cookieParser());
 app.use(express.json({ limit: '100kb' }));
 app.use('/api', router);
 app.use('/metrics', metricsRouter);
+// Swagger UI: до notFound, иначе /api/docs отдаст 404 вместо интерфейса.
+app.get('/api/docs', swaggerUi.setup(swaggerSpec));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(notFound);
 app.use(errorHandler);
 
