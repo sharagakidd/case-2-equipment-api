@@ -21,6 +21,26 @@ npm install
 cp .env.example .env        # Windows: copy .env.example .env
 ```
 
+**Перед первым запуском заполните `.env`** — в примере значений нет, и без них стек не поднимется:
+
+| Переменная | Что вписать |
+|---|---|
+| `POSTGRES_PASSWORD`, `PGPASSWORD` | один и тот же пароль базы. С пустым `POSTGRES_PASSWORD` контейнер `db` не стартует: `Database is uninitialized and superuser password is not specified` |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | две разные длинные случайные строки. Без них приложение падает на старте: `Не задана обязательная переменная окружения: JWT_ACCESS_SECRET` |
+
+```bash
+# bash / macOS / Linux
+sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=devpass/; s/^PGPASSWORD=$/PGPASSWORD=devpass/' .env
+printf 'JWT_ACCESS_SECRET=%s\nJWT_REFRESH_SECRET=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" >> .env
+```
+
+```powershell
+# Windows (PowerShell)
+(Get-Content .env) -replace '^(POSTGRES_PASSWORD|PGPASSWORD)=$', '$1=devpass' | Set-Content .env
+Add-Content .env ('JWT_ACCESS_SECRET=' + [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N'))
+Add-Content .env ('JWT_REFRESH_SECRET=' + [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N'))
+```
+
 ## Переменные окружения
 
 | Переменная | Значение по умолчанию | Назначение |
@@ -37,8 +57,20 @@ cp .env.example .env        # Windows: copy .env.example .env
 | `MAX_WIND_SPEED` | `10` | порог ветра для пригодности окна, км/ч |
 | `MAX_PRECIPITATION` | `0` | допустимая сумма осадков за окно, мм |
 
-`CORS_ORIGINS`, `WEATHER_API_URL` и `FORECAST_API_URL` обязательны: если переменная не задана,
-приложение падает на старте с сообщением `Не задана обязательная переменная окружения: <имя>`.
+Обязательны `CORS_ORIGINS`, `WEATHER_API_URL`, `FORECAST_API_URL`, `JWT_ACCESS_SECRET` и
+`JWT_REFRESH_SECRET`: если переменная не задана, приложение падает на старте с сообщением
+`Не задана обязательная переменная окружения: <имя>`.
+
+### Аутентификация и мониторинг
+
+| Переменная | Значение в `.env.example` | Кто читает | Назначение |
+|---|---|---|---|
+| `JWT_ACCESS_SECRET` | (пусто) | приложение | секрет подписи access-токенов (15 минут) |
+| `JWT_REFRESH_SECRET` | (пусто) | приложение | секрет подписи refresh-токенов (7 дней); отличается от access-секрета, чтобы токены нельзя было подменить друг другом |
+| `LOGIN_RATE_LIMIT_WINDOW_MS` | `900000` | приложение | окно лимита попыток входа, мс |
+| `LOGIN_RATE_LIMIT_MAX` | `5` | приложение | сколько неудачных попыток входа допускается в окне с одного адреса |
+| `GRAFANA_ADMIN_USER` | `admin` | docker compose | логин администратора Grafana |
+| `GRAFANA_ADMIN_PASSWORD` | `admin` | docker compose | пароль администратора Grafana; без значения подставится `admin` |
 
 ### Подключение к базе
 
@@ -57,7 +89,7 @@ cp .env.example .env        # Windows: copy .env.example .env
 | `PGUSER` | `app` | sequelize, sequelize-cli | пользователь для подключения |
 | `PGPASSWORD` | (пусто) | sequelize, sequelize-cli | пароль для подключения; локально `devpass` |
 
-Порядок миграций и сидов задаётся именами файлов (`01-create-sites.js` … `07-create-request-assignees.js`),
+Порядок миграций и сидов задаётся именами файлов (`01-create-sites.js` … `10-add-user-technician-link.js`),
 пути к папкам — в `.sequelizerc` (`migrations-path`, `seeders-path`, `models-path`, `config`).
 
 
@@ -66,11 +98,13 @@ cp .env.example .env        # Windows: copy .env.example .env
 Порядок запуска: база → схема → данные → приложение.
 
 ```bash
-docker compose up -d              # 1. PostgreSQL 18 в контейнере, порт 127.0.0.1:5432
-npx sequelize-cli db:migrate      # 2. применить миграции 01…07: таблицы, enum-типы, индексы
+docker compose up -d --wait       # 1. PostgreSQL 18 в контейнере, 127.0.0.1:5432 (--wait: дождаться healthy)
+npx sequelize-cli db:migrate      # 2. применить миграции 01…10: таблицы, enum-типы, индексы
 npx sequelize-cli db:seed:all     # 3. справочники и демонстрационные данные
 npm run dev                       # 4. запустить API (nodemon: перезапуск при изменении файлов)
 ```
+
+`--wait` важен: без него миграции стартуют, пока база ещё поднимается, и падают на `connection refused`.
 
 `npm run dev` — разработка, `npm start` — обычный запуск. Шаги 1–3 выполняются один раз:
 повторный `db:seed:all` пропускает уже применённые сиды, их список хранится в служебной таблице
@@ -87,7 +121,7 @@ npm run dev                       # 4. запустить API (nodemon: пере
 
 ```bash
 npx sequelize-cli db:seed:undo:all       # убрать данные сидов (по служебной таблице)
-npx sequelize-cli db:migrate:undo        # откатить последнюю применённую миграцию (07)
+npx sequelize-cli db:migrate:undo        # откатить последнюю применённую миграцию (10)
 npx sequelize-cli db:migrate:undo:all     # откатить всю схему до пустой базы
 npx sequelize-cli db:migrate:undo --name <имя миграции без .js>   # откатить конкретную миграцию
 ```
@@ -96,6 +130,7 @@ npx sequelize-cli db:migrate:undo --name <имя миграции без .js>   
 не мешают и данные не приходится чистить вручную:
 
 ```text
+10 users.technician_id → 09 users → 08 equipment.deletedAt →
 07 request_assignees → 06 request_status_history → 05 maintenance_requests →
 04 technicians → 03 equipment_passports → 02 equipment → 01 sites
 ```
@@ -864,8 +899,9 @@ supertest, между тестами удаляют только свои дан
 подменяют репозитории (`jest.unstable_mockModule`). Переменные для тестов (`PGDATABASE`, `PGPORT`,
 лимиты частоты) переопределяются в `tests/integration/helpers/test-context.js`.
 
-Отчёт о покрытии формируется в каталоге `coverage/`; на текущем наборе — **61,16% инструкций,
-51,48% ветвей, 50,2% функций, 65,57% строк** (значения взяты из отчёта последнего прогона).
+Отчёт о покрытии формируется в каталоге `coverage/`. На текущем наборе — примерно **61% инструкций,
+51% ветвей, 50% функций, 66% строк**; десятые доли плавают между прогонами, потому что на часть
+ветвей влияют данные сидов (в двух прогонах подряд выходило 51,48% и 51,02% по ветвям).
 
 ## Эксплуатация
 
@@ -1047,7 +1083,7 @@ case-2-equipment-api/
     ├── db/                   # PostgreSQL: подключение, схема, данные
     │   ├── config.js         # конфиг для sequelize-cli и приложения
     │   ├── index.js          # экземпляр Sequelize из переменных PG*
-    │   ├── migrations/       # 01-create-sites … 07-create-request-assignees
+    │   ├── migrations/       # 01-create-sites … 10-add-user-technician-link
     │   ├── models/           # модели Sequelize и ассоциации (index.js)
     │   └── seeders/          # 01-sites … 07-history
     ├── errors/               # собственные типы ошибок
