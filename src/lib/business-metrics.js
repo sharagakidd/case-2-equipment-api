@@ -1,6 +1,7 @@
 import client from 'prom-client';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../db/index.js';
+import { requestRepository } from '../repositories/index.js';
 import { register } from './metrics.js';
 import logger from './logger.js';
 
@@ -23,6 +24,12 @@ export const equipmentOpenRequests = new client.Gauge({
   name: 'equipment_open_requests',
   help: 'Открытые заявки по единицам оборудования',
   labelNames: ['equipment'],
+  registers: [register],
+});
+
+export const requestsOverdue = new client.Gauge({
+  name: 'maintenance_requests_overdue',
+  help: 'Просроченные плановые работы: срок прошёл, заявка не закрыта',
   registers: [register],
 });
 
@@ -51,11 +58,12 @@ const EQUIPMENT_LOAD_SQL = `
   ORDER BY open_requests DESC, e.name
 `;
 
-async function refresh() {
-  const [byStatus, closeTime, equipmentLoad] = await Promise.all([
+export async function refreshBusinessMetrics() {
+  const [byStatus, closeTime, equipmentLoad, overdue] = await Promise.all([
     sequelize.query(BY_STATUS_SQL, { type: QueryTypes.SELECT }),
     sequelize.query(CLOSE_TIME_SQL, { type: QueryTypes.SELECT }),
     sequelize.query(EQUIPMENT_LOAD_SQL, { type: QueryTypes.SELECT }),
+    requestRepository.countOverdue(),
   ]);
 
   maintenanceRequests.reset();
@@ -69,10 +77,13 @@ async function refresh() {
   for (const row of equipmentLoad) {
     equipmentOpenRequests.set({ equipment: row.equipment }, row.open_requests);
   }
+
+  requestsOverdue.set(overdue);
 }
 
 export function startBusinessMetrics() {
-  const run = () => refresh().catch((err) => logger.warn({ err }, 'не удалось обновить бизнес-метрики'));
+  const run = () =>
+    refreshBusinessMetrics().catch((err) => logger.warn({ err }, 'не удалось обновить бизнес-метрики'));
 
   run();
   setInterval(run, REFRESH_INTERVAL_MS).unref();

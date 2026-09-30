@@ -165,9 +165,7 @@ router.get('/:id', validate({ params: idParamSchema }), requestController.getOne
  *         $ref: '#/components/responses/NotFound'
  */
 router.get('/:id/history', validate({ params: idParamSchema }), requestController.history);
-router.get('/:id', validate({ params: idParamSchema }), requestController.getOne);
 
-router.post('/', requireRole('technician', 'admin'), validate({ body: createRequestSchema }), requestController.create);
 /**
  * @openapi
  * /api/requests/{id}:
@@ -260,7 +258,6 @@ router.patch('/:id', requireRole('technician', 'admin'), validate({ params: idPa
  *       422:
  *         $ref: '#/components/responses/ValidationError'
  */
-router.patch('/:id/status', requireRole('technician', 'admin'), validate({ params: idParamSchema, body: statusChangeSchema }), requestController.changeStatus);
 router.patch('/:id/status', requireRole('technician', 'admin'), validate({ params: idParamSchema, body: statusChangeSchema }), requestController.changeStatus);
 // Бригада вынесена в отдельный подресурс: PATCH заявки её не касается.
 /**
@@ -377,8 +374,6 @@ router.delete('/:id/assignees/:userId', requireRole('admin'), validate({ params:
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.delete('/:id', requireRole('admin'), validate({ params: idParamSchema }), requestController.remove);
-router.delete('/:id/assignees/:userId', requireRole('admin'), validate({ params: assigneeParamsSchema }), requestController.removeAssignee);
 router.delete('/:id', requireRole('admin'), validate({ params: idParamSchema }), requestController.remove);
 
 export default router;
