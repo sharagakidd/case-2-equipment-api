@@ -5,6 +5,8 @@ import { toEquipment } from './EquipmentRepository.js';
 
 // Незакрытые заявки: оборудование занято или находится в ремонте.
 const OPEN_STATUSES = ['new', 'in_progress'];
+// Закрытые заявки: срок плановой работы для них уже не важен.
+const CLOSED_STATUSES = ['done', 'rejected'];
 const SORTABLE = ['title', 'priority', 'status', 'plannedAt', 'author', 'createdAt', 'updatedAt'];
 
 const LIST_INCLUDE = [{ association: 'equipment' }, { association: 'assignees' }];
@@ -155,6 +157,17 @@ export class RequestRepository extends BaseRepository {
     });
 
     return total > 0;
+  }
+
+  // Просроченные плановые работы: срок plannedAt прошёл, а заявка ещё не закрыта.
+  // Значение уходит в прикладную метрику maintenance_requests_overdue.
+  async countOverdue() {
+    return this.model.count({
+      where: {
+        plannedAt: { [Op.lt]: new Date() },
+        status: { [Op.notIn]: CLOSED_STATUSES },
+      },
+    });
   }
 
   toDomain(row) {
