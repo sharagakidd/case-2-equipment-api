@@ -27,9 +27,8 @@ export const httpErrorsTotal = new client.Counter({
   registers: [register],
 });
 
-// route — шаблон маршрута (/api/equipment/:id), иначе серия растёт с каждым id.
-// Запросы, отбитые до выбора маршрута (авторизация, валидация), подписываем
-// ресурсом из списка ниже — он совпадает с роутерами в routes/index.js.
+// route — шаблон маршрута, а не фактический путь: иначе серия растёт с каждым id.
+// Отбитые до выбора маршрута запросы подписываем ресурсом из списка ниже.
 const API_RESOURCES = new Set(['health', 'equipment', 'requests', 'sites', 'reports', 'auth']);
 
 function resourcePrefix(originalUrl) {
