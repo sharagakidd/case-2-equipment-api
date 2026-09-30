@@ -27,7 +27,16 @@ app.use(contextMiddleware);
 // Метрики собираем до лимита частоты — тогда 429 тоже попадают в счётчики.
 app.use(httpMetricsMiddleware);
 // Безопасность: защитные заголовки, CORS по списку из окружения и лимит частоты.
-app.use(helmet());
+// Директиву upgrade-insecure-requests отключаем: TLS в проекте не настроен, а браузер
+// по http поднимал бы запросы ресурсов до https — Swagger UI оставался без стилей и скриптов.
+// Когда появится сертификат, директиву можно вернуть.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: { 'upgrade-insecure-requests': null },
+    },
+  }),
+);
 app.use(cors({ origin: config.corsOrigins, credentials: true }));
 app.use(
   rateLimit({
