@@ -62,7 +62,14 @@ app.use(express.json({ limit: '100kb' }));
 app.use('/api', router);
 app.use('/metrics', metricsRouter);
 // Swagger UI: до notFound, иначе /api/docs отдаст 404 вместо интерфейса.
-app.get('/api/docs', swaggerUi.setup(swaggerSpec));
+// Голый /api/docs перенаправляем на адрес со слэшем: иначе браузер ищет относительные ресурсы
+// (./swagger-ui.css) по пути /api/... и получает 404, а страница остаётся пустой.
+// Express не различает /api/docs и /api/docs/, поэтому запрос со слэшем пропускаем дальше —
+// его отдаёт swaggerUi.serve, иначе получился бы цикл редиректов.
+app.get('/api/docs', (req, res, next) => {
+  if (req.originalUrl.endsWith('/')) return next();
+  return res.redirect(302, '/api/docs/');
+});
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(notFound);
 app.use(errorHandler);
